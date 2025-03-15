@@ -1,14 +1,12 @@
 package main
 
-// ONLY FOR TESTING PURPOSES: this code should be inside kops
-
 import (
 	"fmt"
 	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud"
 )
 
 func main() {
-	client, _ := ecloud.NewClient(
+	client := ecloud.NewClient(
 		"ovh-eu",
 		"YOUR_APPLICATION_KEY",
 		"YOUR_APPLICATION_SECRET",

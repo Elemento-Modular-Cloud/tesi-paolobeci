@@ -41,6 +41,8 @@ type Client struct {
 	applicationVersion      string
 	userAgent               string
 
+	// TODO
+
 	// Firewall         FirewallClient
 	// Location         LocationClient
 	// Network          NetworkClient
@@ -49,6 +51,17 @@ type Client struct {
 	// Logger 			 Logger
 }
 
-func NewClient() {
-	fmt.Println("Hello, World!")
+func NewClient(endpoint string, token string, applicationName string, applicationVersion string) *Client {
+	return &Client{
+		endpoint:           endpoint,
+		token:              token,
+		tokenValid:         false,
+		retryMaxRetries:    3,
+		timeout:            30 * time.Second,
+		httpClient:         &http.Client{},
+		applicationName:    applicationName,
+		applicationVersion: applicationVersion,
+		userAgent:          fmt.Sprintf("%s/%s", applicationName, applicationVersion),
+	}
+	// TODO: research real data needed for the client
 }
