@@ -1,5 +1,7 @@
 package main
 
+// ONLY FOR TESTING PURPOSES: this code should be inside kops
+
 import (
 	"fmt"
 	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud"
