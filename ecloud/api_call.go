@@ -1,12 +1,21 @@
 package ecloud
 
+import (
+	"net/http"
+	"encoding/json"
+	"bytes"
+	"io"
+)
+
 
 // ------------------------------ API CALLS FUNCTIONS -------------------------
 
+// Retrieve a list of VMs
 func (c *Client) GetVm(url string, resType interface{}) error {
 	return c.CallAPI("GET", url, nil, resType, true)
 }
 
+// Retrieve a VM by its ID
 func (c *Client) GetVmById(url string, id string, resType interface{}) error {
 	return c.CallAPI("GET", url, nil, resType, true)
 }
@@ -16,12 +25,20 @@ func (c *Client) GetVmById(url string, id string, resType interface{}) error {
 
 // ------------------------------ UTILS FUNCTIONS -----------------------------
 
+// Base function to perform API calls
+// Args:
+// - method: HTTP method to use
+// - path: API path to call
+// - reqBody: request body to send
+// - resType: response type to unmarshal
+// - needAuth: if the call needs authentication
+// Returns:
+// - error: if any
 func (c *Client) CallAPI(method, path string, reqBody, resType interface{}, needAuth bool) error {
 	req, err := c.NewRequest(method, path, reqBody, needAuth)
 	if err != nil {
 		return err
 	}
-	req = req.WithContext(ctx)
 	response, err := c.Do(req)
 	if err != nil {
 		return err
@@ -41,80 +58,42 @@ func (c *Client) NewRequest(method, path string, reqBody interface{}, needAuth b
 		}
 	}
 
-	target := getTarget(c.endpoint, path)
+	target := c.endpoint + path
 	req, err := http.NewRequest(method, target, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 
 	// Inject headers
+	// TODO: insert real headers
 	if body != nil {
 		req.Header.Add("Content-Type", "application/json;charset=utf-8")
-	}
-	if c.AppKey != "" {
-		req.Header.Add("X-Ovh-Application", c.AppKey)
 	}
 	req.Header.Add("Accept", "application/json")
 
 	// Inject signature. Some methods do not need authentication, especially /time,
 	// /auth and some /order methods are actually broken if authenticated.
 	if needAuth {
-		if c.AppKey != "" {
-			timeDelta, err := c.TimeDelta()
-			if err != nil {
-				return nil, err
-			}
-
-			timestamp := getLocalTime().Add(-timeDelta).Unix()
-
-			req.Header.Add("X-Ovh-Timestamp", strconv.FormatInt(timestamp, 10))
-			req.Header.Add("X-Ovh-Consumer", c.ConsumerKey)
-
-			h := sha1.New()
-			h.Write([]byte(fmt.Sprintf("%s+%s+%s+%s+%s+%d",
-				c.AppSecret,
-				c.ConsumerKey,
-				method,
-				target,
-				body,
-				timestamp,
-			)))
-			req.Header.Add("X-Ovh-Signature", fmt.Sprintf("$1$%x", h.Sum(nil)))
-		} else if c.ClientID != "" {
-			token, err := c.oauth2TokenSource.Token()
-			if err != nil {
-				return nil, fmt.Errorf("failed to retrieve OAuth2 Access Token: %w", err)
-			}
-
-			req.Header.Set("Authorization", "Bearer "+token.AccessToken)
-		} else if c.AccessToken != "" {
-			req.Header.Set("Authorization", "Bearer "+c.AccessToken)
-		}
+		// TODO: insert auth process
 	}
 
 	// Send the request with requested timeout
-	c.Client.Timeout = c.Timeout
-
-	if c.UserAgent != "" {
-		req.Header.Set("User-Agent", "github.com/ovh/go-ovh ("+c.UserAgent+")")
-	} else {
-		req.Header.Set("User-Agent", "github.com/ovh/go-ovh")
-	}
+	c.httpClient.Timeout = c.timeout
 
 	return req, nil
 }
 
 // Do sends an HTTP request and returns an HTTP response
 func (c *Client) Do(req *http.Request) (*http.Response, error) {
-	if c.Logger != nil {
-		c.Logger.LogRequest(req)
+	if c.logger != nil {
+		c.logger.LogRequest(req)
 	}
-	resp, err := c.Client.Do(req)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	if c.Logger != nil {
-		c.Logger.LogResponse(resp)
+	if c.logger != nil {
+		c.logger.LogResponse(resp)
 	}
 	return resp, nil
 }
@@ -125,20 +104,21 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 func (c *Client) UnmarshalResponse(response *http.Response, resType interface{}) error {
 	// Read all the response body
 	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
+	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		return err
 	}
 
-	// < 200 && >= 300 : API error
+	// < 200 && >= 300 then generate API error
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		apiError := &APIError{Code: response.StatusCode}
-		if err = json.Unmarshal(body, apiError); err != nil {
-			apiError.Message = string(body)
-		}
-		apiError.QueryID = response.Header.Get("X-Ovh-QueryID")
+		// TODO: decide how to handle errors
+		// apiError := &APIError{Code: response.StatusCode}
+		// if err = json.Unmarshal(body, apiError); err != nil {
+		// 	apiError.Message = string(body)
+		// }
+		// apiError.QueryID = response.Header.Get("X-Ovh-QueryID")
 
-		return apiError
+		// return apiError
 	}
 
 	// Nothing to unmarshal

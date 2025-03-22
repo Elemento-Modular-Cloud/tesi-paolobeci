@@ -30,6 +30,7 @@ var Endpoints = map[string]string{
 	"ionos-eu":        IonosEU,
 }
 
+// Client represents a client to call the Elemento Cloud API
 type Client struct {
 	endpoint                string
 	token                   string
@@ -40,6 +41,7 @@ type Client struct {
 	applicationName         string
 	applicationVersion      string
 	userAgent               string
+	logger 					Logger
 
 	// TODO
 
@@ -51,8 +53,21 @@ type Client struct {
 	// Logger 			 Logger
 }
 
-func NewClient(endpoint string, token string, applicationName string, applicationVersion string) *Client {
-	return &Client{
+func NewClient(endpoint string, token string, applicationName string, applicationVersion string) (*Client, error) {
+	if endpoint == "" {
+		return nil, fmt.Errorf("endpoint cannot be empty")
+	}
+	if token == "" {
+		return nil, fmt.Errorf("token cannot be empty")
+	}
+	if applicationName == "" {
+		return nil, fmt.Errorf("application name cannot be empty")
+	}
+	if applicationVersion == "" {
+		return nil, fmt.Errorf("application version cannot be empty")
+	}
+
+	client := &Client{
 		endpoint:           endpoint,
 		token:              token,
 		tokenValid:         false,
@@ -63,5 +78,19 @@ func NewClient(endpoint string, token string, applicationName string, applicatio
 		applicationVersion: applicationVersion,
 		userAgent:          fmt.Sprintf("%s/%s", applicationName, applicationVersion),
 	}
+
 	// TODO: research real data needed for the client
+
+	return client, nil
+}
+
+// New Client creation from env variables
+func NewClientFromEnv(path string) (*Client, error) {
+	var client Client
+
+	// Get and check the configuration
+	if err := client.loadConfig(path); err != nil {
+		return nil, err
+	}
+	return &client, nil
 }
