@@ -1,0 +1,28 @@
+[
+    {
+        "id": "1",
+        "name": "S-1vcpu-2ram",
+        "available": true,
+        "specs": {
+            "vcpu": 1,
+            "ram": { "unit": "GB", "value": 2 },
+            "disk": { "unit": "GB", "value": 20 }
+        },
+        "price": {
+            "hourly": 0.01,
+            "monthly": 0.5
+        },
+        "tags": [
+            "small",
+            "linux"
+        ],
+        "supportedOS": [
+            "ubuntu",
+            "almalinux"
+        ],
+        "supportedProviders": [
+            "ovh",
+            "arubacloud"
+        ]
+    }
+]

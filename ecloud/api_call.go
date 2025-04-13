@@ -5,22 +5,61 @@ import (
 	"encoding/json"
 	"bytes"
 	"io"
+	"fmt"
 )
 
 
 // ------------------------------ API CALLS FUNCTIONS -------------------------
 
 // Retrieve a list of VMs
-func (c *Client) GetVm(url string, resType interface{}) error {
-	return c.CallAPI("GET", url, nil, resType, true)
+func (c *Client) GetVm(resType interface{}) error {
+	return c.CallAPI("GET", "/api/v1.0/adapter", nil, resType, true)
 }
 
 // Retrieve a VM by its ID
-func (c *Client) GetVmById(url string, id string, resType interface{}) error {
-	return c.CallAPI("GET", url, nil, resType, true)
+func (c *Client) GetVmById(id string, resType interface{}) error {
+	return c.CallAPI("GET", fmt.Sprintf("/api/v1.0/adapter?itemID=%s", id), nil, resType, true)
 }
 
-// ...
+// Create a new VM
+func (c *Client) CreateVm(reqBody interface{}, resType interface{}) error {
+	return c.CallAPI("POST", "/api/v1.0/adapter", reqBody, resType, true)
+}
+
+// Create a VM async
+func (c *Client) CreateVmAsync(reqBody interface{}, resType interface{}) error {
+	return c.CallAPI("POST", "/api/v1.0/adapter/async", reqBody, resType, true)
+}
+
+// Delete a VM by its ID
+func (c *Client) DeleteVm(id string, reqBody interface{}, resType interface{}) error {
+	return c.CallAPI("DELETE", "/api/v1.0/adapter", reqBody, resType, true)
+}
+
+// Get a list of storage
+func (c *Client) GetStorage(resType interface{}) error {
+	return c.CallAPI("GET", "/api/v1.0/storage", nil, resType, true)
+}
+
+// Get a storage by its ID
+func (c *Client) GetStorageById(id string, resType interface{}) error {
+	return c.CallAPI("GET", fmt.Sprintf("/api/v1.0/storage?itemID=%s", id), nil, resType, true)
+}
+
+// Create a storage
+func (c *Client) CreateStorage(reqBody interface{}, resType interface{}) error {
+	return c.CallAPI("POST", "/api/v1.0/storage", reqBody, resType, true)
+}
+
+// Delete a storage by its ID
+func (c *Client) DeleteStorage(id string, reqBody interface{}, resType interface{}) error {
+	return c.CallAPI("DELETE", "/api/v1.0/storage", reqBody, resType, true)
+}
+
+// Create an SDN
+func (c *Client) CreateSdn(reqBody interface{}, resType interface{}) error {
+	return c.CallAPI("POST", "/api/v1.0/adapter/sdn", reqBody, resType, true)
+}
 
 
 // ------------------------------ UTILS FUNCTIONS -----------------------------
