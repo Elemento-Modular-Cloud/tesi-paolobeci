@@ -1,0 +1,504 @@
+type: collection.insomnia.rest/5.0
+name: Deamons APIs
+meta:
+  id: wrk_e750320c7f7e46d9b840762129f15298
+  created: 1728378206380
+  modified: 1744644173768
+collection:
+  - name: Deamons APIs
+    meta:
+      id: fld_43e605e62baa42948f1d0fde199d9d8a
+      created: 1744640930942
+      modified: 1744644186538
+      sortKey: -1744640930942
+    children:
+      - name: Authenticate
+        meta:
+          id: fld_a531882efb964173870d1e9f4aef5232
+          created: 1744640939752
+          modified: 1744642889521
+          sortKey: -1744642881213
+        children:
+          - url: http://localhost:47777/api/v1/authenticate/login
+            name: login
+            meta:
+              id: req_a8e3e1cc751c4956a9921f3b4f55d0d7
+              created: 1744640950389
+              modified: 1744641655903
+              isPrivate: false
+              sortKey: -1744641653840
+            method: POST
+            body:
+              mimeType: application/json
+              text: |-
+                {
+                  "username": "pbeci@elemento.cloud",
+                  "password": "kevjyN-6qazdi-mopgak"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:47777/api/v1/authenticate/login
+            name: check_login
+            meta:
+              id: req_2f79aea54c884c54a22c51e485afe467
+              created: 1744641590552
+              modified: 1744641657124
+              isPrivate: false
+              sortKey: -1744641653790
+            method: GET
+            parameters:
+              - id: pair_359f4226eb1d477abd585c9c425cbbaf
+                name: username
+                disabled: false
+              - id: pair_8b1ef34069c341bdbccaa92c227daee6
+                name: password
+                disabled: false
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:47777/api/v1/authenticate/status
+            name: status_login
+            meta:
+              id: req_3d8a64c7656f4fc0948061ca35c13821
+              created: 1744641653740
+              modified: 1744641688959
+              isPrivate: false
+              sortKey: -1744641653740
+            method: POST
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:47777/api/v1/authenticate/logout
+            name: logout
+            meta:
+              id: req_e1b28ecfe728492fb94b68ef586f8c6b
+              created: 1744641753347
+              modified: 1744641776044
+              isPrivate: false
+              sortKey: -1744641653640
+            method: POST
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: Matcher VM
+        meta:
+          id: fld_024bf514de9f47d98d7665a839a79ba8
+          created: 1744641813539
+          modified: 1744642891917
+          sortKey: -1744642881163
+        children:
+          - url: http://localhost:17777
+            name: health
+            meta:
+              id: req_8e70013e576245108ab7ba4027bb153f
+              created: 1744641824138
+              modified: 1744641874001
+              isPrivate: false
+              sortKey: -1744641824138
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:17777/api/v1.0/client/vm/canallocate
+            name: canallocate
+            meta:
+              id: req_1e544cf7e2b4471f99dca8db4e9e5c7c
+              created: 1744641892685
+              modified: 1744642211809
+              isPrivate: false
+              sortKey: -1744641738989
+            method: POST
+            body:
+              mimeType: application/json
+              text: |-
+                {
+                  "slots": 2,
+                  "overprovision": 2,
+                  "allowSMT": false,
+                  "archs": ["X86_64"],
+                  "flags": ["sse2"],
+                  "ramsize": 2048,
+                  "reqECC": false,
+                  "misc": {"os_family": "linux", "os_flavour": "pop"},
+                  "pci": []
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:17777/api/v1.0/client/vm/register
+            name: register
+            meta:
+              id: req_595b8662cb724410b4d11ab8884fca46
+              created: 1744642128872
+              modified: 1744642206757
+              isPrivate: false
+              sortKey: -1744641696414.5
+            method: POST
+            body:
+              mimeType: application/json
+              text: |-
+                {
+                  "vm_name": "VM",
+                  "slots": 2,
+                  "overprovision": 2,
+                  "allowSMT": false,
+                  "archs": ["X86_64"],
+                  "flags": ["sse2"],
+                  "ramsize": 2048,
+                  "reqECC": false,
+                  "misc": {"os_family": "windows", "os_flavour": "windows11"},
+                  "pci": [],
+                  "volumes":[
+                      {"vid": "ffffffff-fffff-ffff-ffff-ffffffffffff"}
+                  ],
+                  "netdevs": []
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:17777/api/v1.0/client/vm/unregister
+            name: delete
+            meta:
+              id: req_f3cb90dda638443883aadaf4b48231e9
+              created: 1744642257271
+              modified: 1744642914064
+              isPrivate: false
+              sortKey: -1744641674827.25
+            method: POST
+            body:
+              mimeType: application/json
+              text: |-
+                {
+                  "local_index": "ffffffff-fffff-ffff-ffff-ffffffffffff"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:17777/api/v1.0/client/vm/status
+            name: status VMs
+            meta:
+              id: req_6da3a37996944a41bd84d2e8776e6bb9
+              created: 1744642292148
+              modified: 1744642351413
+              isPrivate: false
+              sortKey: -1744641675027.25
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:17777/api/v1.0/client/vm/templates
+            name: templates
+            meta:
+              id: req_2e13bbb743b647648243b577113e1096
+              created: 1744642336151
+              modified: 1744642368983
+              isPrivate: false
+              sortKey: -1744641674927.25
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: Storage
+        meta:
+          id: fld_950dc4176c77417fb68847db46992344
+          created: 1744642409135
+          modified: 1744642893506
+          sortKey: -1744642881138
+        children:
+          - url: http://localhost:27777
+            name: health
+            meta:
+              id: req_1c1b20277f1043ee8be57df7662d229b
+              created: 1744642416605
+              modified: 1744642425023
+              isPrivate: false
+              sortKey: -1744642418853
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:27777/api/v1.0/client/volume/accessible
+            name: status storages
+            meta:
+              id: req_edfc523dd1b84c2eba6b0605d4c93650
+              created: 1744642481511
+              modified: 1744642485871
+              isPrivate: false
+              sortKey: -1744642121495.5
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:27777/api/v1.0/client/volume/info
+            name: info
+            meta:
+              id: req_08b0d8e08cfe4a8a964ed91720fbff32
+              created: 1744642506992
+              modified: 1744642583165
+              isPrivate: false
+              sortKey: -1744642121395.5
+            method: POST
+            body:
+              mimeType: application/json
+              text: |-
+                {
+                  "volume_id": "ffffffffffffffffffffffffffffffffff"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:27777/api/v1.0/client/volume/cancreate
+            name: cancreate
+            meta:
+              id: req_8e691868682c49bfaea30ec8d228ef34
+              created: 1744642571913
+              modified: 1744644015831
+              isPrivate: false
+              description: Size is expressed in *Gigabytes*
+              sortKey: -1744642270174.25
+            method: POST
+            body:
+              mimeType: application/json
+              text: |-
+                {
+                  "size": "100"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:27777/api/v1.0/client/volume/create
+            name: create
+            meta:
+              id: req_7be1e95cfc3b4e75b98e78f39d839388
+              created: 1744642648345
+              modified: 1744643981608
+              isPrivate: false
+              sortKey: -1744642195834.875
+            method: POST
+            body:
+              mimeType: application/json
+              text: |-
+                {
+                  "size": "50",
+                  "name": "volume",
+                  "bootable": true,
+                  "readonly": true,
+                  "sharable": true,
+                  "private": true
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:27777/api/v1.0/client/volume/destroy
+            name: delete
+            meta:
+              id: req_f4dcfbf5d6e4486e833317bd3ceff21d
+              created: 1744642718787
+              modified: 1744642723172
+              isPrivate: false
+              sortKey: -1744641972766.75
+            method: POST
+            body:
+              mimeType: application/json
+              text: |-
+                {
+                  "volume_id": "ffffffffffffffffffffffffffffffffff"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: Network
+        meta:
+          id: fld_88ccfc3ee718438d95ac14f043353d04
+          created: 1744642881113
+          modified: 1744642885292
+          sortKey: -1744642881113
+        children:
+          - url: http://localhost:37777
+            name: health
+            meta:
+              id: req_42006bdb8f774b1bb89b0b770b0710aa
+              created: 1744644215621
+              modified: 1744644227735
+              isPrivate: false
+              sortKey: -1744644222280
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+cookieJar:
+  name: Default Jar
+  meta:
+    id: jar_08e63404ed08368db76755a6bd17a53fd211ffd8
+    created: 1728378206382
+    modified: 1728378329511
+  cookies:
+    - key: cookiesession1
+      value: 678A3E0EB7F2BC72437AA579CBA2AB5A
+      domain: my.arubacloud.com
+      path: /
+      httpOnly: true
+      hostOnly: true
+      creation: 2024-10-08T09:05:29.511Z
+      lastAccessed: 2024-10-08T09:05:29.511Z
+      id: a2fb153b-c916-42dd-af1a-ed931a0ab232
+environments:
+  name: Base Environment
+  meta:
+    id: env_08e63404ed08368db76755a6bd17a53fd211ffd8
+    created: 1728378206381
+    modified: 1728378206381
+    isPrivate: false
