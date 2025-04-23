@@ -3,7 +3,7 @@ package ecloud
 import (
 	"time"
 
-	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema"
+	// "github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema" // TODO
 )
 
 // Volume represents a volume in the Elemento.

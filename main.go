@@ -9,10 +9,8 @@ import (
 
 func main() {
 	client, err := ecloud.NewClient(
-		"ovh-eu",
-		"YOUR_APPLICATION_KEY",
-		"YOUR_APPLICATION_SECRET",
-		"YOUR_CONSUMER_KEY",
+		"APP-NAME",
+		"APP-VERSION",
 	)
 	if err != nil {
 		fmt.Println("Error:", err)

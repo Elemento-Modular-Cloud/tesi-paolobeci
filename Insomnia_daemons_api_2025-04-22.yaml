@@ -115,11 +115,11 @@ collection:
                 send: true
                 store: true
               rebuildPath: true
-      - name: Matcher VM
+      - name: Compute
         meta:
           id: fld_024bf514de9f47d98d7665a839a79ba8
           created: 1744641813539
-          modified: 1744642891917
+          modified: 1744983123237
           sortKey: -1744642881163
         children:
           - url: http://localhost:17777
@@ -183,7 +183,7 @@ collection:
             meta:
               id: req_595b8662cb724410b4d11ab8884fca46
               created: 1744642128872
-              modified: 1744642206757
+              modified: 1745324259469
               isPrivate: false
               sortKey: -1744641696414.5
             method: POST
@@ -191,7 +191,7 @@ collection:
               mimeType: application/json
               text: |-
                 {
-                  "vm_name": "VM",
+                  "vm_name": "test-paolo-2",
                   "slots": 2,
                   "overprovision": 2,
                   "allowSMT": false,
@@ -199,10 +199,10 @@ collection:
                   "flags": ["sse2"],
                   "ramsize": 2048,
                   "reqECC": false,
-                  "misc": {"os_family": "windows", "os_flavour": "windows11"},
+                  "misc": {"os_family": "linux", "os_flavour": "ubuntu"},
                   "pci": [],
                   "volumes":[
-                      {"vid": "ffffffff-fffff-ffff-ffff-ffffffffffff"}
+                      {"vid": "f614b59b383844dd93f674bef4597169"}
                   ],
                   "netdevs": []
                 }
@@ -339,7 +339,7 @@ collection:
             meta:
               id: req_08b0d8e08cfe4a8a964ed91720fbff32
               created: 1744642506992
-              modified: 1744642583165
+              modified: 1745324231536
               isPrivate: false
               sortKey: -1744642121395.5
             method: POST
@@ -347,7 +347,7 @@ collection:
               mimeType: application/json
               text: |-
                 {
-                  "volume_id": "ffffffffffffffffffffffffffffffffff"
+                  "volume_id": "f614b59b383844dd93f674bef4597169"
                 }
             headers:
               - name: Content-Type
@@ -396,7 +396,7 @@ collection:
             meta:
               id: req_7be1e95cfc3b4e75b98e78f39d839388
               created: 1744642648345
-              modified: 1744643981608
+              modified: 1745324085251
               isPrivate: false
               sortKey: -1744642195834.875
             method: POST
@@ -404,11 +404,11 @@ collection:
               mimeType: application/json
               text: |-
                 {
-                  "size": "50",
+                  "size": 32,
                   "name": "volume",
                   "bootable": true,
-                  "readonly": true,
-                  "sharable": true,
+                  "readonly": false,
+                  "shareable": false,
                   "private": true
                 }
             headers:
@@ -429,7 +429,7 @@ collection:
             meta:
               id: req_f4dcfbf5d6e4486e833317bd3ceff21d
               created: 1744642718787
-              modified: 1744642723172
+              modified: 1745324165898
               isPrivate: false
               sortKey: -1744641972766.75
             method: POST
@@ -437,7 +437,7 @@ collection:
               mimeType: application/json
               text: |-
                 {
-                  "volume_id": "ffffffffffffffffffffffffffffffffff"
+                  "volume_id": "488f6b23fa2d4c36851ca77d5ca299b2"
                 }
             headers:
               - name: Content-Type

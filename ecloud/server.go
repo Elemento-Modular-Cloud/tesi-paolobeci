@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema"
+	// "github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema" // TODO
 )
 
 // VM representation inside Elemento
