@@ -40,3 +40,6 @@ func (c *NetworkClient) Get(ctx context.Context, id string) (*Network, error) {
 	
 	return nil, nil
 }
+
+// NetworkZone specifies a network zone.
+type NetworkZone string

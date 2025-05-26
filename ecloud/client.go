@@ -5,12 +5,14 @@ package ecloud
 import (
 	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
 	"time"
 )
 
 type Response struct {
 	*http.Response
-	// Meta Meta TODO
+	Meta Meta
 
 	// body holds a copy of the http.Response body that must be used within the handler
 	// chain. The http.Response.Body is reserved for external users.
@@ -75,7 +77,7 @@ func NewClient(applicationName string, applicationVersion string) (*Client, erro
 	}
 
 	client := &Client{
-		endpoint:           "http://192.168.1.19",
+		endpoint:           "http://127.0.0.1",
 		retryMaxRetries:    3,
 		timeout:            30 * time.Second,
 		httpClient:         &http.Client{},
@@ -101,4 +103,65 @@ func NewClientFromEnv(path string) (*Client, error) {
 		return nil, err
 	}
 	return &client, nil
+}
+
+// ListOpts specifies options for listing resources.
+type ListOpts struct {
+	Page          int    // Page (starting at 1)
+	PerPage       int    // Items per page (0 means default)
+	LabelSelector string // Label selector for filtering by labels
+}
+
+func (c *Client) all(f func(int) (*Response, error)) error {
+	var (
+		page = 1
+	)
+	for {
+		resp, err := f(page)
+		if err != nil {
+			return err
+		}
+		if resp.Meta.Pagination == nil || resp.Meta.Pagination.NextPage == 0 {
+			return nil
+		}
+		page = resp.Meta.Pagination.NextPage
+	}
+}
+
+// Meta represents meta information included in an API response.
+type Meta struct {
+	Pagination *Pagination
+	Ratelimit  Ratelimit
+}
+
+// Pagination represents pagination meta information.
+type Pagination struct {
+	Page         int
+	PerPage      int
+	PreviousPage int
+	NextPage     int
+	LastPage     int
+	TotalEntries int
+}
+
+// Ratelimit represents ratelimit information.
+type Ratelimit struct {
+	Limit     int
+	Remaining int
+	Reset     time.Time
+}
+
+// Values returns the ListOpts as URL values.
+func (l ListOpts) Values() url.Values {
+	vals := url.Values{}
+	if l.Page > 0 {
+		vals.Add("page", strconv.Itoa(l.Page))
+	}
+	if l.PerPage > 0 {
+		vals.Add("per_page", strconv.Itoa(l.PerPage))
+	}
+	if len(l.LabelSelector) > 0 {
+		vals.Add("label_selector", l.LabelSelector)
+	}
+	return vals
 }

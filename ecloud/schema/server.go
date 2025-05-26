@@ -23,22 +23,32 @@ type CanAllocateComputeResponse struct {
 
 // -------- CREATE COMPUTE --------
 type CreateComputeRequest struct {
-	Name   			string `json:"vm_name"`
-	Slots         	int `json:"slots"`
-	Overprovision 	bool `json:"overprovision"`
-	AllowSMT      	bool `json:"allowSMT"`
-	Archs         	[]string `json:"archs"`
-	Flags         	[]string `json:"flags"`
-	Ramsize       	int `json:"ramSize"`
-	ReqECC        	bool `json:"reqECC"`
-	Misc          	[]string `json:"misc"`
-	Pci          	[]string `json:"pci"`
-	Volumes   	  	[]string `json:"volumes"`
-	Netdevs			[]string `json:"netdevs"`
+	// elemento fields
+	Name   			string 					`json:"vm_name"`
+	Slots         	int 					`json:"slots"`
+	Overprovision 	bool					`json:"overprovision"`
+	AllowSMT      	bool 					`json:"allowSMT"`
+	Archs         	[]string 				`json:"archs"`
+	Flags         	[]string 				`json:"flags"`
+	Ramsize       	int 					`json:"ramSize"`
+	ReqECC        	bool 					`json:"reqECC"`
+	Misc          	[]string 				`json:"misc"`
+	Pci          	[]string 				`json:"pci"`
+	Volumes   	  	[]string 				`json:"volumes"`
+	Netdevs			[]string 				`json:"netdevs"`
+
+	// kOps required
+	UserData        string          		`json:"user_data,omitempty"`
+	Labels          *map[string]string      `json:"labels,omitempty"`
+	SSHKeys         []int                   `json:"ssh_keys,omitempty"`
+	Datacenter      string                  `json:"datacenter,omitempty"`
+	Networks        []int                   `json:"networks,omitempty"`
 }
 
-type CreateComputeResponse struct {}
-
+type CreateComputeResponse struct {
+	Server       Server   `json:"server"`
+	RootPassword *string  `json:"root_password"`
+}
 
 // -------- COMPUTE STATUS --------
 type ComputeStatusResponse struct {
@@ -46,16 +56,17 @@ type ComputeStatusResponse struct {
 }
 
 type Server struct {
+	UniqueID      string        `json:"uniqueID"`
 	Name		  string        `json:"name"`
+	Status 	  	  string        `json:"status"`
+	Created       time.Time     `json:"created"`
+	NetworkConfig NetworkConfig `json:"network_config"`
 	ServerURL     string        `json:"serverurl"`
 	IsGateway     bool          `json:"is_gateway"`
-	UniqueID      string        `json:"uniqueID"`
 	ReqJSON       RequestConfig `json:"req_json"`
-	Volumes       []Volume      `json:"volumes"`
 	CreationDate  time.Time     `json:"creation_date"`
-	NetworkConfig NetworkConfig `json:"network_config"`
-	Status 	  	  string        `json:"status"`
 	Labels 	      map[string]string `json:"labels"`
+	Volumes       []Volume      `json:"volumes"`
 }
 
 type RequestConfig struct {

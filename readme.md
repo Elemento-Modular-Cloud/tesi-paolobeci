@@ -4,6 +4,11 @@ In questa repository verrà sviluppato: "Elemento Cloud Client Libraries for Go"
 ## Link agli appunti su Notion
 [Notion Site](https://glimmer-slip-7ec.notion.site/appunti-tesi-paolo?pvs=4)
 
+## Test Elemento Cloud Go Client locally
+```bash
+go test -v ./ecloud
+```
+
 ## Test kOps locally
 From inisde the kOps source directory, run the following command to start a Docker container with the Go environment set up:
 ```bash
@@ -19,4 +24,7 @@ make
 Or just run it locally:
 ```bash
 make
+
+# for the debugging
+DEBUGGING=true make
 ```

@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema" 
+
+	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema"
 )
 
 // ------------------------------ API CALLS FUNCTIONS -------------------------
@@ -188,7 +189,7 @@ func (c *Client) NewRequest(method, port, path string, reqBody interface{}, need
 		}
 	}
 
-	target := c.endpoint + port + path
+	target := c.endpoint + ":" + port + path
 	req, err := http.NewRequest(method, target, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
