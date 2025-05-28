@@ -6,6 +6,11 @@ In questa repository verrà sviluppato: "Elemento Cloud Client Libraries for Go"
 
 ## Test Elemento Cloud Go Client locally
 ```bash
+# First import the env variables
+export ELEMENTO_CLOUD_API_KEY=your_api_key
+# ...
+
+# Then run the tests
 go test -v ./ecloud
 ```
 

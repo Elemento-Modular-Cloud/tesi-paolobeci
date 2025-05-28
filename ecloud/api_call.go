@@ -53,9 +53,9 @@ func (c *Client) HealthCheckCompute() (*schema.HealthCheckComputeResponse, error
 }
 
 // Can allocate a new compute instance
-func (c *Client) CanAllocateCompute() (*schema.CanAllocateComputeResponse, error) {
+func (c *Client) CanAllocateCompute(reqBody interface{}) (*schema.CanAllocateComputeResponse, error) {
 	var res schema.CanAllocateComputeResponse
-	err := c.CallAPI("GET", "17777", "/api/v1.0/client/vm/canallocate", nil, &res, true)
+	err := c.CallAPI("POST", "17777", "/api/v1.0/client/vm/canallocate", reqBody, &res, true)
 	if err != nil {
 		return nil, err
 	}
@@ -113,9 +113,9 @@ func (c *Client) HealthCheckStorage() (*schema.HealthCheckStorageResponse, error
 }
 
 // Can create a new storage volume
-func (c *Client) CanCreateStorage() (*schema.CanCreateStorageResponse, error) {
+func (c *Client) CanCreateStorage(reqBody interface{}) (*schema.CanCreateStorageResponse, error) {
 	var res schema.CanCreateStorageResponse
-	err := c.CallAPI("GET", "27777", "/api/v1.0/client/volume/cancreate", nil, &res, true)
+	err := c.CallAPI("POST", "27777", "/api/v1.0/client/volume/cancreate", reqBody, &res, true)
 	if err != nil {
 		return nil, err
 	}
@@ -187,6 +187,7 @@ func (c *Client) NewRequest(method, port, path string, reqBody interface{}, need
 		if err != nil {
 			return nil, err
 		}
+		fmt.Printf("Request body for %s %s:\n%s\n", method, path, string(body)) // TEST
 	}
 
 	target := c.endpoint + ":" + port + path

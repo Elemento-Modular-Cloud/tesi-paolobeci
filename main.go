@@ -4,11 +4,12 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud"
 )
 
 func main() {
-	client, err := ecloud.NewClient(
+	_, err := ecloud.NewClient(
 		"APP-NAME",
 		"APP-VERSION",
 	)
@@ -16,5 +17,5 @@ func main() {
 		fmt.Println("Error:", err)
 		return
 	}
-	fmt.Printf("Welcome %s!\n", client)
+	fmt.Println("Client initialized successfully!")
 }

@@ -101,7 +101,7 @@ func (c *ServerClient) GetByID(ctx context.Context, id string) (*schema.Server, 
 	}
 
 	// Search for the server with the matching ID
-	for _, server := range statusResp.Servers {
+	for _, server := range *statusResp {
 		if server.UniqueID == id {
 			return &server, nil
 		}
@@ -163,8 +163,8 @@ func (c *ServerClient) List(ctx context.Context, opts ServerListOpts) ([]*Server
 		return nil, nil, err
 	}
 
-	servers := make([]*Server, 0, len(body.Servers))
-	for _, s := range body.Servers {
+	servers := make([]*Server, 0, len(*body))
+	for _, s := range *body {
 		servers = append(servers, ServerFromSchema(s))
 	}
 	return servers, &Response{}, nil
@@ -236,8 +236,13 @@ func (c *ServerClient) Create(ctx context.Context, opts ServerCreateOpts) (Serve
 		return ServerCreateResult{}, nil, err
 	}
 
+	// Prepare the can allocate request according to the schema
+	reqBodyCanAllocate := schema.CanAllocateComputeRequest{
+		// TODO
+	}
+
 	// First check if we can allocate the compute instance
-	_, err := c.client.CanAllocateCompute()
+	_, err := c.client.CanAllocateCompute(reqBodyCanAllocate)
 	if err != nil {
 		return ServerCreateResult{}, nil, fmt.Errorf("the config provided cannot be allocated: %w", err)
 	}
@@ -267,9 +272,11 @@ func (c *ServerClient) Create(ctx context.Context, opts ServerCreateOpts) (Serve
 
 	// Add volumes if provided
 	if len(opts.Volumes) > 0 {
-		reqBody.Volumes = make([]string, len(opts.Volumes))
+		reqBody.Volumes = make([]map[string]string, len(opts.Volumes))
 		for i, volume := range opts.Volumes {
-			reqBody.Volumes[i] = strconv.Itoa(volume.ID)
+			reqBody.Volumes[i] = map[string]string{
+				"vid": strconv.Itoa(volume.ID),
+			}
 		}
 	}
 

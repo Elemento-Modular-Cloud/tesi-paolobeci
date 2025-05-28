@@ -21,26 +21,25 @@ type Response struct {
 
 // Meson endpoints of supportd Cloud Providers
 const (
-	ArubaCloudEU   = "http://192.168.1.103" // = "https://eu.arubacloud.public.elemento.cloud/api/v1.0"
-	OvhEU          = "http://192.168.1.103" // = "https://eu.ovh.public.elemento.cloud/api/v1.0"
-	GigasEU        = "http://192.168.1.103" // = "https://eu.gigas.public.elemento.cloud/api/v1.0"
-	IonosEU        = "http://192.168.1.103" // = "https://eu.ionos.public.elemento.cloud/api/v1.0"
+	ArubaCloudEU = "http://192.168.1.103" // = "https://eu.arubacloud.public.elemento.cloud/api/v1.0"
+	OvhEU        = "http://192.168.1.103" // = "https://eu.ovh.public.elemento.cloud/api/v1.0"
+	GigasEU      = "http://192.168.1.103" // = "https://eu.gigas.public.elemento.cloud/api/v1.0"
+	IonosEU      = "http://192.168.1.103" // = "https://eu.ionos.public.elemento.cloud/api/v1.0"
 )
 
 var Endpoints = map[string]string{
-	"arubacloud-eu":   ArubaCloudEU,
-	"ovh-eu":          OvhEU,
-	"gigas-eu":        GigasEU,
-	"ionos-eu":        IonosEU,
+	"arubacloud-eu": ArubaCloudEU,
+	"ovh-eu":        OvhEU,
+	"gigas-eu":      GigasEU,
+	"ionos-eu":      IonosEU,
 }
-
 
 // Local endpoints for deamons connection
 const (
 	AuthenticateRoute = "http://localhost:47777/api/v1/authenticate/"
-	ComputeRoute	  = "http://localhost:17777/api/v1.0/client/vm/"
-	StorageRoute	  = "http://localhost:27777/api/v1.0/client/volume/"
-	NetworkRoute	  = "http://localhost:37777/"
+	ComputeRoute      = "http://localhost:17777/api/v1.0/client/vm/"
+	StorageRoute      = "http://localhost:27777/api/v1.0/client/volume/"
+	NetworkRoute      = "http://localhost:37777/"
 )
 
 var Routes = map[string]string{
@@ -52,18 +51,18 @@ var Routes = map[string]string{
 
 // Client represents a client to call the Elemento Cloud API
 type Client struct {
-	endpoint                string
-	retryMaxRetries         int
-	timeout 			    time.Duration
-	httpClient              *http.Client
-	applicationName         string
-	applicationVersion      string
-	userAgent               string
-	logger 					Logger
+	endpoint           string
+	retryMaxRetries    int
+	timeout            time.Duration
+	httpClient         *http.Client
+	applicationName    string
+	applicationVersion string
+	userAgent          string
+	logger             Logger
 
-	Server           		ServerClient
-	Network		 			NetworkClient
-	SSHKey          		SSHKeyClient
+	Server  ServerClient
+	Network NetworkClient
+	SSHKey  SSHKeyClient
 
 	// TODO
 }

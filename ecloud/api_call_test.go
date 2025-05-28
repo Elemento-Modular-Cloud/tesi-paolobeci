@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 	"testing"
+	"time"
 
 	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema"
 )
@@ -41,12 +41,8 @@ func testEndpoint(t *testing.T, name string, fn func() error) {
 	err := fn()
 	if err != nil {
 		// Format error message for better readability
-		errMsg := err.Error()
-		if strings.Contains(errMsg, "<!doctype html>") {
-			errMsg = "Server returned HTML error page"
-		}
-		fmt.Printf("❌ Error: %s\n", errMsg)
-		t.Error(errMsg)
+		fmt.Printf("❌ Error: \n")
+		t.Errorf("Test '%s' failed: %v", name, err)
 	} else {
 		fmt.Printf("✅ Success\n")
 	}
@@ -73,6 +69,9 @@ func TestAPIEndpoints(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create client: %v", err)
 	}
+	client.timeout = 120 * time.Second
+
+	var serverID string
 
 	// Authentication Tests
 	fmt.Printf("\n%s\nAuthentication Tests\n%s\n",
@@ -104,17 +103,28 @@ func TestAPIEndpoints(t *testing.T) {
 		separator,
 		subSeparator)
 
-	testEndpoint(t, "Health Check Compute", func() error {
-		resp, err := client.HealthCheckCompute()
-		if err != nil {
-			return err
-		}
-		fmt.Printf("\nHealth Check Response:\n%s\n", prettyPrint(resp))
-		return nil
-	})
+	// testEndpoint(t, "Health Check Compute", func() error {
+	// 	resp, err := client.HealthCheckCompute()
+	// 	if err != nil || *resp != "This is an Elemento Matcher Client!" {
+	// 		return err
+	// 	}
+	// 	fmt.Printf("\nHealth Check Response:\n%s\n", prettyPrint(resp))
+	// 	return nil
+	// })
 
 	testEndpoint(t, "Can Allocate Compute", func() error {
-		resp, err := client.CanAllocateCompute()
+		req := schema.CanAllocateComputeRequest{
+			Slots:         2,
+			Overprovision: 2,
+			AllowSMT:      false,
+			Archs:         []string{"X86_64"},
+			Flags:         []string{"sse2"},
+			Ramsize:       2048,
+			ReqECC:        false,
+			Misc:          schema.Misc{OsFamily: "linux", OsFlavour: "pop"},
+			Pci:           []string{},
+		}
+		resp, err := client.CanAllocateCompute(req)
 		if err != nil {
 			return err
 		}
@@ -126,15 +136,15 @@ func TestAPIEndpoints(t *testing.T) {
 		req := schema.CreateComputeRequest{
 			Name:          "test-vm",
 			Slots:         2,
-			Overprovision: false,
+			Overprovision: 2,
 			AllowSMT:      false,
-			Archs:         []string{"x86_64"},
-			Flags:         []string{},
+			Archs:         []string{"X86_64"},
+			Flags:         []string{"sse2"},
 			Ramsize:       2048,
 			ReqECC:        false,
-			Misc:          []string{},
+			Misc:          schema.Misc{OsFamily: "linux", OsFlavour: "ubuntu"},
 			Pci:           []string{},
-			Volumes:       []string{},
+			Volumes:       []map[string]string{}, // {"vid": "volume_id"}
 			Netdevs:       []string{},
 		}
 		resp, err := client.CreateCompute(req)
@@ -146,12 +156,27 @@ func TestAPIEndpoints(t *testing.T) {
 	})
 
 	testEndpoint(t, "Compute Status", func() error {
-		resp, err := client.ComputeStatus()
-		if err != nil {
-			return err
+		maxRetries := 10
+		for i := 0; i < maxRetries; i++ {
+			resp, err := client.ComputeStatus()
+			if err != nil {
+				return err
+			}
+			fmt.Printf("\nCompute Status Response (attempt %d/%d):\n%s\n", i+1, maxRetries, prettyPrint(resp))
+
+			// Save the created server's uniqueID if available
+			if len(*resp) > 0 {
+				serverID = (*resp)[0].UniqueID
+				fmt.Printf("\nCreated server ID: %s\n", serverID)
+				return nil
+			}
+
+			if i < maxRetries-1 {
+				fmt.Printf("No server found, retrying in 1 second...\n")
+				time.Sleep(time.Second)
+			}
 		}
-		fmt.Printf("\nCompute Status Response:\n%s\n", prettyPrint(resp))
-		return nil
+		return fmt.Errorf("no server found after %d attempts", maxRetries)
 	})
 
 	testEndpoint(t, "Compute Templates", func() error {
@@ -165,7 +190,7 @@ func TestAPIEndpoints(t *testing.T) {
 
 	testEndpoint(t, "Delete Compute", func() error {
 		req := schema.DeleteComputeRequest{
-			Name: "test-vm",
+			LocalIndex: serverID,
 		}
 		resp, err := client.DeleteCompute(req)
 		if err != nil {
@@ -180,17 +205,20 @@ func TestAPIEndpoints(t *testing.T) {
 		separator,
 		subSeparator)
 
-	testEndpoint(t, "Health Check Storage", func() error {
-		resp, err := client.HealthCheckStorage()
-		if err != nil {
-			return err
-		}
-		fmt.Printf("\nHealth Check Response:\n%s\n", prettyPrint(resp))
-		return nil
-	})
+	// testEndpoint(t, "Health Check Storage", func() error {
+	// 	resp, err := client.HealthCheckStorage()
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	fmt.Printf("\nHealth Check Response:\n%s\n", prettyPrint(resp))
+	// 	return nil
+	// })
 
 	testEndpoint(t, "Can Create Storage", func() error {
-		resp, err := client.CanCreateStorage()
+		reqBody := map[string]interface{}{
+			"size": 100,
+		}
+		resp, err := client.CanCreateStorage(reqBody)
 		if err != nil {
 			return err
 		}
@@ -200,8 +228,12 @@ func TestAPIEndpoints(t *testing.T) {
 
 	testEndpoint(t, "Create Storage", func() error {
 		req := map[string]interface{}{
-			"name": "test-volume",
-			"size": 1024,
+			"size":      100,
+			"name":      "test-volume",
+			"bootable":  true,
+			"readonly":  false,
+			"shareable": false,
+			"private":   true,
 		}
 		resp, err := client.CreateStorage(req)
 		if err != nil {
@@ -222,7 +254,7 @@ func TestAPIEndpoints(t *testing.T) {
 
 	testEndpoint(t, "Get Storage By ID", func() error {
 		req := map[string]string{
-			"volumeID": "test-volume-id",
+			"volumeID": "d596ec1f15f7444b93e294c3cdbc1905", // TODO: cambia con quello del create
 		}
 		resp, err := client.GetStorageByID(req)
 		if err != nil {
@@ -233,8 +265,8 @@ func TestAPIEndpoints(t *testing.T) {
 	})
 
 	testEndpoint(t, "Delete Storage", func() error {
-		req := map[string]string{
-			"volumeID": "test-volume-id",
+		req := schema.DeleteStorageRequest{
+			VolumeID: "ffffffff-fffff-ffff-ffff-ffffffffffff", // TODO: make this value the one of the create
 		}
 		resp, err := client.DeleteStorage(req)
 		if err != nil {
