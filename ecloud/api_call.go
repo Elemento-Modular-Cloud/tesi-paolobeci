@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"time"
 
 	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema"
 )
@@ -161,6 +163,134 @@ func (c *Client) DeleteStorage(reqBody interface{}) (*schema.DeleteStorageRespon
 	}
 	return &res, nil
 }
+
+// ------------------------------ MOCKED ENDPOINTS -----------------------------
+
+// Get a Network by Id
+func (c *Client) GetNetworkById(reqBody interface{}) (*schema.NetworkGetResponse, error) {
+	var res schema.NetworkGetResponse
+
+	//! Mock data
+	_, ipnet, _ := net.ParseCIDR("10.0.0.0/24")
+	res.Network = schema.Network{
+		ID:      1,
+		Name:    "test-network",
+		Created: time.Now(),
+		IPRange: ipnet,
+		Subnets: []schema.NetworkSubnet{
+			{
+				Type:        "cloud",
+				IPRange:     ipnet,
+				NetworkZone: "eu-south",
+				Gateway:     net.ParseIP("10.0.0.1"),
+				VSwitchID:   1,
+			},
+		},
+		Routes:     "",
+		Servers:    []*schema.Server{},
+		Protection: false,
+		Labels: map[string]string{
+			"environment": "test",
+		},
+	}
+
+	return &res, nil
+}
+
+// List all networks
+func (c *Client) ListNetwork(reqBody interface{}) (*schema.NetworkListResponse, error) {
+	var res schema.NetworkListResponse
+
+	//! Mock data
+	_, ipnet1, _ := net.ParseCIDR("10.0.0.0/24")
+	_, ipnet2, _ := net.ParseCIDR("192.168.0.0/24")
+	res.Networks = []schema.Network{
+		{
+			ID:      1,
+			Name:    "test-network-1",
+			Created: time.Now(),
+			IPRange: ipnet1,
+			Subnets: []schema.NetworkSubnet{
+				{
+					Type:        "cloud",
+					IPRange:     ipnet1,
+					NetworkZone: "eu-south",
+					Gateway:     net.ParseIP("10.0.0.1"),
+					VSwitchID:   1,
+				},
+			},
+			Routes:     "",
+			Servers:    []*schema.Server{},
+			Protection: false,
+			Labels: map[string]string{
+				"environment": "test",
+			},
+		},
+		{
+			ID:      2,
+			Name:    "test-network-2",
+			Created: time.Now(),
+			IPRange: ipnet2,
+			Subnets: []schema.NetworkSubnet{
+				{
+					Type:        "cloud",
+					IPRange:     ipnet2,
+					NetworkZone: "eu-south",
+					Gateway:     net.ParseIP("192.168.0.1"),
+					VSwitchID:   2,
+				},
+			},
+			Routes:     "",
+			Servers:    []*schema.Server{},
+			Protection: false,
+			Labels: map[string]string{
+				"environment": "prod",
+			},
+		},
+	}
+
+	return &res, nil
+}
+
+// Delete a network
+func (c *Client) DeleteNetwork(network interface{}) (*Response, error) {
+	var res Response
+
+	//! Mock data - just return an empty response with 200 status
+	res.Response = &http.Response{
+		StatusCode: http.StatusOK,
+	}
+
+	return &res, nil
+}
+
+// Create a network
+func (c *Client) CreateNetwork(network interface{}) (*schema.NetworkCreateResponse, error) {
+	var res schema.NetworkCreateResponse
+
+	//! Mock data
+	req, ok := network.(schema.NetworkCreateRequest)
+	if !ok {
+		return nil, fmt.Errorf("invalid request type")
+	}
+
+	_, ipnet, _ := net.ParseCIDR(req.IPRange)
+	res.Network = schema.Network{
+		ID:         3, // Increment from the last network ID
+		Name:       req.Name,
+		Created:    time.Now(),
+		IPRange:    ipnet,
+		Subnets:    req.Subnets,
+		Routes:     "",
+		Servers:    []*schema.Server{},
+		Protection: false,
+		Labels:     *req.Labels,
+	}
+
+	return &res, nil
+}
+
+// SSH KEYS...
 
 // ------------------------------ UTILS FUNCTIONS -----------------------------
 

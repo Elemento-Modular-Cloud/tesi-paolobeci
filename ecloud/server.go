@@ -284,11 +284,7 @@ func (c *ServerClient) Create(ctx context.Context, opts ServerCreateOpts) (Serve
 	if len(opts.Networks) > 0 {
 		reqBody.Networks = make([]int, len(opts.Networks))
 		for i, network := range opts.Networks {
-			networkID, err := strconv.Atoi(network.ID)
-			if err != nil {
-				return ServerCreateResult{}, nil, fmt.Errorf("invalid network ID format: %w", err)
-			}
-			reqBody.Networks[i] = networkID
+			reqBody.Networks[i] = network.ID
 		}
 	}
 
@@ -325,4 +321,10 @@ func (o ServerCreateOpts) Validate() error {
 type ServerCreateResult struct {
 	Server       *Server
 	RootPassword string
+}
+
+// Deletes a server
+func (c *ServerClient) Delete(ctx context.Context, server *Server) (*schema.DeleteComputeResponse, error) {
+	resp, err := c.client.DeleteCompute(server)
+	return resp, err
 }
