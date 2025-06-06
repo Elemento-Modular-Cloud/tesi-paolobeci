@@ -246,7 +246,6 @@ func NetworkFromSchema(s schema.Network) *Network {
 	}
 }
 
-
 // // NetworkAddSubnetOpts specifies options for adding a subnet to a network.
 // type NetworkAddSubnetOpts struct {
 // 	Subnet NetworkSubnet

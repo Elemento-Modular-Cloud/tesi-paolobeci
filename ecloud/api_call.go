@@ -56,12 +56,29 @@ func (c *Client) HealthCheckCompute() (*schema.HealthCheckComputeResponse, error
 
 // Can allocate a new compute instance
 func (c *Client) CanAllocateCompute(reqBody interface{}) (*schema.CanAllocateComputeResponse, error) {
-	var res schema.CanAllocateComputeResponse
-	err := c.CallAPI("POST", "17777", "/api/v1.0/client/vm/canallocate", reqBody, &res, true)
-	if err != nil {
-		return nil, err
+	// Original API call code
+	// var res schema.CanAllocateComputeResponse
+	// err := c.CallAPI("POST", "17777", "/api/v1.0/client/vm/canallocate", reqBody, &res, true)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// return &res, nil
+
+	// Mock response that always returns true since the API is not implemented yet
+	res := &schema.CanAllocateComputeResponse{
+		Mesos: []schema.ProviderInfo{
+			{
+				Price: schema.Price{
+					Hour:  0.0,
+					Month: 0.0,
+					Unit:  "EUR",
+				},
+				Provider: "mock-provider",
+				Region:   "eu-south",
+			},
+		},
 	}
-	return &res, nil
+	return res, nil
 }
 
 // Create a new compute instance
@@ -81,6 +98,14 @@ func (c *Client) ComputeStatus() (*schema.ComputeStatusResponse, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Convert RAM size from GB to MB for each server
+	for i := range res {
+		if res[i].ReqJSON.RamSize > 0 {
+			res[i].ReqJSON.RamSize = res[i].ReqJSON.RamSize * 1024
+		}
+	}
+
 	return &res, nil
 }
 
@@ -183,7 +208,6 @@ func (c *Client) GetNetworkById(reqBody interface{}) (*schema.NetworkGetResponse
 				IPRange:     ipnet,
 				NetworkZone: "eu-south",
 				Gateway:     net.ParseIP("10.0.0.1"),
-				VSwitchID:   1,
 			},
 		},
 		Routes:     "",
@@ -216,7 +240,6 @@ func (c *Client) ListNetwork(reqBody interface{}) (*schema.NetworkListResponse, 
 					IPRange:     ipnet1,
 					NetworkZone: "eu-south",
 					Gateway:     net.ParseIP("10.0.0.1"),
-					VSwitchID:   1,
 				},
 			},
 			Routes:     "",
@@ -237,7 +260,6 @@ func (c *Client) ListNetwork(reqBody interface{}) (*schema.NetworkListResponse, 
 					IPRange:     ipnet2,
 					NetworkZone: "eu-south",
 					Gateway:     net.ParseIP("192.168.0.1"),
-					VSwitchID:   2,
 				},
 			},
 			Routes:     "",

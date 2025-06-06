@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"strconv"
 	"time"
 
@@ -117,20 +116,6 @@ type ServerListOpts struct {
 	Name   string
 	Status []ServerStatus
 	Sort   []string
-}
-
-func (l ServerListOpts) values() url.Values {
-	vals := l.ListOpts.Values()
-	if l.Name != "" {
-		vals.Add("name", l.Name)
-	}
-	for _, status := range l.Status {
-		vals.Add("status", string(status))
-	}
-	for _, sort := range l.Sort {
-		vals.Add("sort", sort)
-	}
-	return vals
 }
 
 // AllWithOpts returns all servers for the given options.

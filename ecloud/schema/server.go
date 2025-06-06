@@ -96,7 +96,7 @@ type RequestConfig struct {
 	AllowSMT      bool     `json:"allowSMT"`
 	Arch          string   `json:"arch"`
 	Flags         []string `json:"flags"`
-	RamSize       int      `json:"ramsize"`
+	RamSize       float64  `json:"ramsize"`
 	ReqECC        bool     `json:"reqECC"`
 	Volumes       []Volume `json:"volumes"`
 	PciDevs       []string `json:"pcidevs"`
