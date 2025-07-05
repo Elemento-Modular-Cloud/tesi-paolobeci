@@ -110,6 +110,9 @@ func (c *NetworkClient) List(ctx context.Context, opts NetworkListOpts) ([]*Netw
 	}
 	Networks := make([]*Network, 0, len(body.Networks))
 	for _, s := range body.Networks {
+		if opts.Name != "" && s.Name != opts.Name {
+			continue
+		}
 		Networks = append(Networks, NetworkFromSchema(s))
 	}
 	return Networks, resp, nil

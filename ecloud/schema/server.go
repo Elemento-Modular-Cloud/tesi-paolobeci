@@ -45,9 +45,12 @@ type CanAllocateComputeResponse struct {
 }
 
 // -------- CREATE COMPUTE --------
+type Info struct {
+	Name          string              `json:"vm_name"`
+}
 type CreateComputeRequest struct {
 	// elemento fields
-	Name          string              `json:"vm_name"`
+	Info          Info                `json:"info"`
 	Slots         int                 `json:"slots"`
 	Overprovision int                 `json:"overprovision"`
 	AllowSMT      bool                `json:"allowSMT"`
@@ -61,11 +64,11 @@ type CreateComputeRequest struct {
 	Netdevs       []string            `json:"netdevs"`
 
 	// kOps required
-	UserData   string             `json:"user_data,omitempty"`
-	Labels     *map[string]string `json:"labels,omitempty"`
-	SSHKeys    []int              `json:"ssh_keys,omitempty"`
-	Datacenter string             `json:"datacenter,omitempty"`
-	Networks   []int              `json:"networks,omitempty"`
+	// UserData   string             `json:"user_data,omitempty"`
+	// Labels     *map[string]string `json:"labels,omitempty"`
+	// SSHKeys    []int              `json:"ssh_keys,omitempty"`
+	// Datacenter string             `json:"datacenter,omitempty"`
+	// Networks   []int              `json:"networks,omitempty"`
 }
 
 type CreateComputeResponse struct {

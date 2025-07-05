@@ -74,7 +74,7 @@ func (o SSHKeyCreateOpts) Validate() error {
 	return nil
 }
 
-// Create creates a new SSH key with the given options.
+// Creates a new SSH key with the given options.
 func (c *SSHKeyClient) Create(ctx context.Context, opts SSHKeyCreateOpts) (*SSHKey, *Response, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, nil, err

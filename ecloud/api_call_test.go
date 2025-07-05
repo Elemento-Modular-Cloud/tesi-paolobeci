@@ -134,7 +134,7 @@ func TestAPIEndpoints(t *testing.T) {
 
 	testEndpoint(t, "Create Compute", func() error {
 		req := schema.CreateComputeRequest{
-			Name:          "test-vm",
+			Info:          schema.Info{Name: "test-vm"},
 			Slots:         2,
 			Overprovision: 2,
 			AllowSMT:      false,

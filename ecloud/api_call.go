@@ -231,14 +231,14 @@ func (c *Client) ListNetwork(reqBody interface{}) (*schema.NetworkListResponse, 
 	res.Networks = []schema.Network{
 		{
 			ID:      1,
-			Name:    "test-network-1",
+			Name:    "test.k8s",
 			Created: time.Now(),
 			IPRange: ipnet1,
 			Subnets: []schema.NetworkSubnet{
 				{
 					Type:        "cloud",
 					IPRange:     ipnet1,
-					NetworkZone: "eu-south",
+					NetworkZone: "eu-south-1",
 					Gateway:     net.ParseIP("10.0.0.1"),
 				},
 			},

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema"
@@ -39,11 +40,23 @@ type ServerType struct {
 type Architecture string
 
 const (
-	// ArchitectureX86 is the architecture for Intel/AMD x86 CPUs.
-	ArchitectureX86 Architecture = "x86"
+	// ArchitectureX86_32 is the architecture for Intel/AMD x86 32 bit CPUs.
+	ArchitectureX86_32 Architecture = "X86_32"
 
-	// ArchitectureARM is the architecture for ARM CPUs.
-	ArchitectureARM Architecture = "arm"
+	// ArchitectureX86_64 is the architecture for Intel/AMD x86 64 bit CPUs.
+	ArchitectureX86_64 Architecture = "X86_64"
+
+	// ArchitectureARM_7 is the architecture for ARM 7 CPUs.
+	ArchitectureARM_7 Architecture = "ARM_7"
+
+	// ArchitectureARM_8 is the architecture for ARM 8 CPUs.
+	ArchitectureARM_8 Architecture = "ARM_8"
+
+	// ArchitecturePPC_64 is the architecture for PowerPC 64 bit CPUs.
+	ArchitecturePPC_64 Architecture = "PPC_64"
+
+	// ArchitectureS390X is the architecture for IBM S390 32 bit CPUs.
+	ArchitectureS390X Architecture = "S390X"
 )
 
 // ServerStatus specifies a server's status.
@@ -204,7 +217,8 @@ type ServerUpdateOpts struct {
 // ServerCreateOpts specifies options for creating a new server.
 type ServerCreateOpts struct {
 	Name             string
-	ServerType       *ServerType
+	ServerType       *ServerType // Size name (e.g., "neon", "argon", "kripton")
+	Image            string      // Image name (e.g., "ubuntu-24-04", "debian-12")
 	SSHKeys          []*SSHKey
 	Datacenter       *Datacenter
 	UserData         string
@@ -232,28 +246,58 @@ func (c *ServerClient) Create(ctx context.Context, opts ServerCreateOpts) (Serve
 		return ServerCreateResult{}, nil, fmt.Errorf("the config provided cannot be allocated: %w", err)
 	}
 
+	// Parse image to OS family and flavor
+	osFamily, osFlavour := parseImageToOS(opts.Image)
+
 	// Prepare the request body according to the schema
 	reqBody := schema.CreateComputeRequest{
-		Name:       opts.Name,
-		UserData:   opts.UserData,
-		Labels:     &opts.Labels,
-		Datacenter: opts.Datacenter.Name,
+		Info:    schema.Info{Name: opts.Name},
+		Misc:    schema.Misc{OsFamily: osFamily, OsFlavour: osFlavour},
+		Pci:     []string{},
+		Volumes: []map[string]string{},
+		Netdevs: []string{},
 	}
 
 	// Add server type configuration
 	if opts.ServerType != nil {
-		reqBody.Slots = opts.ServerType.Cores
-		reqBody.Ramsize = int(opts.ServerType.Memory * 1024) // Convert GB to MB
-		reqBody.Archs = []string{string(opts.ServerType.Architecture)}
-	}
-
-	// Add SSH keys if provided
-	if len(opts.SSHKeys) > 0 {
-		reqBody.SSHKeys = make([]int, len(opts.SSHKeys))
-		for i, sshKey := range opts.SSHKeys {
-			reqBody.SSHKeys[i] = sshKey.ID
+		// Check if ServerType has zero cores/memory but a valid size name
+		if opts.ServerType.Cores == 0 && opts.ServerType.Memory == 0 && opts.ServerType.Name != "" {
+			fmt.Printf("DEBUG: ServerType has zero cores/memory but name '%s', attempting size conversion\n", opts.ServerType.Name)
+			// Try to convert the ServerType name to a size configuration
+			sizeConfig, err := ConvertServerSize(opts.ServerType.Name)
+			if err == nil {
+				fmt.Printf("DEBUG: Successfully converted ServerType name '%s' to size config - Slots: %d, Ramsize: %d MB\n", opts.ServerType.Name, sizeConfig.Slots, sizeConfig.Ramsize)
+				reqBody.Slots = sizeConfig.Slots
+				reqBody.Ramsize = sizeConfig.Ramsize
+				// Use the ServerType's architecture if specified, otherwise default to x86_64
+				if opts.ServerType.Architecture != "" {
+					reqBody.Archs = []string{string(opts.ServerType.Architecture)}
+				} else {
+					reqBody.Archs = []string{string(ArchitectureX86_64)}
+				}
+			} else {
+				fmt.Printf("DEBUG: Failed to convert ServerType name '%s' to size config: %v\n", opts.ServerType.Name, err)
+				// Fall back to using the ServerType as-is (will result in 0 slots/ramsize)
+				reqBody.Slots = opts.ServerType.Cores
+				reqBody.Ramsize = int(opts.ServerType.Memory * 1024) // Convert GB to MB
+				reqBody.Archs = []string{string(opts.ServerType.Architecture)}
+			}
+		} else {
+			// Use ServerType as-is
+			reqBody.Slots = opts.ServerType.Cores
+			reqBody.Ramsize = int(opts.ServerType.Memory * 1024) // Convert GB to MB
+			reqBody.Archs = []string{string(opts.ServerType.Architecture)}
 		}
 	}
+
+	// TODO: configure cloudinit with default SSH key
+	// Add SSH keys if provided, needs work on the elemento side
+	// if len(opts.SSHKeys) > 0 {
+	// 	reqBody.SSHKeys = make([]int, len(opts.SSHKeys))
+	// 	for i, sshKey := range opts.SSHKeys {
+	// 		reqBody.SSHKeys[i] = sshKey.ID
+	// 	}
+	// }
 
 	// Add volumes if provided
 	if len(opts.Volumes) > 0 {
@@ -267,9 +311,9 @@ func (c *ServerClient) Create(ctx context.Context, opts ServerCreateOpts) (Serve
 
 	// Add networks if provided
 	if len(opts.Networks) > 0 {
-		reqBody.Networks = make([]int, len(opts.Networks))
+		reqBody.Netdevs = make([]string, len(opts.Networks))
 		for i, network := range opts.Networks {
-			reqBody.Networks[i] = network.ID
+			reqBody.Netdevs[i] = strconv.Itoa(network.ID)
 		}
 	}
 
@@ -293,7 +337,7 @@ func (o ServerCreateOpts) Validate() error {
 	if o.Name == "" {
 		return errors.New("missing name")
 	}
-	if o.ServerType == nil || (o.ServerType.ID == 0 && o.ServerType.Name == "") {
+	if o.ServerType == nil {
 		return errors.New("missing server type")
 	}
 	if o.Datacenter == nil {
@@ -312,4 +356,95 @@ type ServerCreateResult struct {
 func (c *ServerClient) Delete(ctx context.Context, server *Server) (*schema.DeleteComputeResponse, error) {
 	resp, err := c.client.DeleteCompute(server)
 	return resp, err
+}
+
+// ServerSizeConfig represents the configuration for a server size
+type ServerSizeConfig struct {
+	Slots   int // vCPUs
+	Ramsize int // RAM in MB
+}
+
+// ConvertServerSize converts a server size falvour name to its corresponding
+// slots and ramsize configuration
+//
+// Supported sizes:
+//   - "helium": 1 vCPU, 0.5 GB RAM (512 MB)
+//   - "neon": 2 vCPUs, 2 GB RAM (2048 MB)
+//   - "argon2": 4 vCPUs, 4 GB RAM (4096 MB)
+//   - "argon": 6 vCPUs, 4 GB RAM (4096 MB)
+//   - "kripton": 8 vCPUs, 8 GB RAM (8192 MB)
+//
+// The size parameter is case-insensitive and will be trimmed of whitespace.
+// Returns an error if the size is not supported.
+func ConvertServerSize(size string) (*ServerSizeConfig, error) {
+	// Normalize the size string to lowercase for case-insensitive matching
+	normalizedSize := strings.ToLower(strings.TrimSpace(size))
+
+	switch normalizedSize {
+	case "helium":
+		return &ServerSizeConfig{
+			Slots:   1,   // 1 vCPU
+			Ramsize: 512, // 0.5 GB = 512 MB
+		}, nil
+	case "neon":
+		return &ServerSizeConfig{
+			Slots:   2,    // 2 vCPUs
+			Ramsize: 2048, // 2 GB = 2048 MB
+		}, nil
+	case "argon2":
+		return &ServerSizeConfig{
+			Slots:   4,    // 4 vCPUs
+			Ramsize: 4096, // 4 GB = 4096 MB
+		}, nil
+	case "argon":
+		return &ServerSizeConfig{
+			Slots:   6,    // 6 vCPUs
+			Ramsize: 4096, // 4 GB = 4096 MB
+		}, nil
+	case "kripton":
+		return &ServerSizeConfig{
+			Slots:   8,    // 8 vCPUs
+			Ramsize: 8192, // 8 GB = 8192 MB
+		}, nil
+	default:
+		return nil, fmt.Errorf("unsupported server size: %s. Supported sizes are: helium, neon, argon2, argon, kripton", size)
+	}
+}
+
+// parses an image name and returns Elemento OS family and flavor
+func parseImageToOS(image string) (string, string) {
+	normalizedImage := strings.ToLower(strings.TrimSpace(image))
+
+	// Ubuntu variants
+	if strings.Contains(normalizedImage, "ubuntu") {
+		return "linux", "ubuntu"
+	}
+
+	// Debian variants
+	if strings.Contains(normalizedImage, "debian") {
+		return "linux", "debian"
+	}
+
+	// CentOS/RHEL variants
+	if strings.Contains(normalizedImage, "centos") || strings.Contains(normalizedImage, "rhel") || strings.Contains(normalizedImage, "redhat") {
+		return "linux", "centos"
+	}
+
+	// Fedora
+	if strings.Contains(normalizedImage, "fedora") {
+		return "linux", "fedora"
+	}
+
+	// Alpine
+	if strings.Contains(normalizedImage, "alpine") {
+		return "linux", "alpine"
+	}
+
+	// Windows variants
+	if strings.Contains(normalizedImage, "windows") {
+		return "windows", "windows"
+	}
+
+	// Default fallback
+	return "linux", "ubuntu"
 }

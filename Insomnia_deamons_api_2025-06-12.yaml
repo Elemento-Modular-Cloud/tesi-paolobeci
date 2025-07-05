@@ -4,6 +4,7 @@ meta:
   id: wrk_e750320c7f7e46d9b840762129f15298
   created: 1728378206380
   modified: 1744644173768
+  description: ""
 collection:
   - name: Deamons APIs
     meta:
@@ -11,6 +12,7 @@ collection:
       created: 1744640930942
       modified: 1744644186538
       sortKey: -1744640930942
+      description: ""
     children:
       - name: Authenticate
         meta:
@@ -18,6 +20,7 @@ collection:
           created: 1744640939752
           modified: 1744642889521
           sortKey: -1744642881213
+          description: ""
         children:
           - url: http://localhost:47777/api/v1/authenticate/login
             name: login
@@ -26,6 +29,7 @@ collection:
               created: 1744640950389
               modified: 1744641655903
               isPrivate: false
+              description: ""
               sortKey: -1744641653840
             method: POST
             body:
@@ -53,16 +57,21 @@ collection:
             meta:
               id: req_2f79aea54c884c54a22c51e485afe467
               created: 1744641590552
-              modified: 1744641657124
+              modified: 1745768094865
               isPrivate: false
+              description: ""
               sortKey: -1744641653790
             method: GET
             parameters:
               - id: pair_359f4226eb1d477abd585c9c425cbbaf
                 name: username
+                value: pbeci@elemento.cloud
+                description: ""
                 disabled: false
               - id: pair_8b1ef34069c341bdbccaa92c227daee6
                 name: password
+                value: kevjyN-6qazdi-mopgak
+                description: ""
                 disabled: false
             headers:
               - name: User-Agent
@@ -80,10 +89,11 @@ collection:
             meta:
               id: req_3d8a64c7656f4fc0948061ca35c13821
               created: 1744641653740
-              modified: 1744641688959
+              modified: 1745768119728
               isPrivate: false
+              description: ""
               sortKey: -1744641653740
-            method: POST
+            method: GET
             headers:
               - name: User-Agent
                 value: insomnia/11.0.2
@@ -102,6 +112,7 @@ collection:
               created: 1744641753347
               modified: 1744641776044
               isPrivate: false
+              description: ""
               sortKey: -1744641653640
             method: POST
             headers:
@@ -121,6 +132,7 @@ collection:
           created: 1744641813539
           modified: 1744983123237
           sortKey: -1744642881163
+          description: ""
         children:
           - url: http://localhost:17777
             name: health
@@ -129,6 +141,7 @@ collection:
               created: 1744641824138
               modified: 1744641874001
               isPrivate: false
+              description: ""
               sortKey: -1744641824138
             method: GET
             headers:
@@ -147,8 +160,9 @@ collection:
             meta:
               id: req_1e544cf7e2b4471f99dca8db4e9e5c7c
               created: 1744641892685
-              modified: 1744642211809
+              modified: 1748418544682
               isPrivate: false
+              description: ""
               sortKey: -1744641738989
             method: POST
             body:
@@ -183,15 +197,18 @@ collection:
             meta:
               id: req_595b8662cb724410b4d11ab8884fca46
               created: 1744642128872
-              modified: 1745324259469
+              modified: 1749736467730
               isPrivate: false
+              description: ""
               sortKey: -1744641696414.5
             method: POST
             body:
               mimeType: application/json
               text: |-
                 {
-                  "vm_name": "test-paolo-2",
+                  "info": {
+                		"vm_name": "test-paolo3"
+                	},
                   "slots": 2,
                   "overprovision": 2,
                   "allowSMT": false,
@@ -201,9 +218,7 @@ collection:
                   "reqECC": false,
                   "misc": {"os_family": "linux", "os_flavour": "ubuntu"},
                   "pci": [],
-                  "volumes":[
-                      {"vid": "f614b59b383844dd93f674bef4597169"}
-                  ],
+                  "volumes":[{"vid": "a812966242ac4e2f84dbdd049a1facfe"}],
                   "netdevs": []
                 }
             headers:
@@ -224,15 +239,16 @@ collection:
             meta:
               id: req_f3cb90dda638443883aadaf4b48231e9
               created: 1744642257271
-              modified: 1744642914064
+              modified: 1748945473041
               isPrivate: false
+              description: ""
               sortKey: -1744641674827.25
             method: POST
             body:
               mimeType: application/json
               text: |-
                 {
-                  "local_index": "ffffffff-fffff-ffff-ffff-ffffffffffff"
+                  "local_index": "549e19f2-1d19-4a37-8f10-b8be2569339b"
                 }
             headers:
               - name: Content-Type
@@ -252,8 +268,9 @@ collection:
             meta:
               id: req_6da3a37996944a41bd84d2e8776e6bb9
               created: 1744642292148
-              modified: 1744642351413
+              modified: 1748597160295
               isPrivate: false
+              description: ""
               sortKey: -1744641675027.25
             method: GET
             headers:
@@ -274,6 +291,7 @@ collection:
               created: 1744642336151
               modified: 1744642368983
               isPrivate: false
+              description: ""
               sortKey: -1744641674927.25
             method: GET
             headers:
@@ -293,6 +311,7 @@ collection:
           created: 1744642409135
           modified: 1744642893506
           sortKey: -1744642881138
+          description: ""
         children:
           - url: http://localhost:27777
             name: health
@@ -301,6 +320,7 @@ collection:
               created: 1744642416605
               modified: 1744642425023
               isPrivate: false
+              description: ""
               sortKey: -1744642418853
             method: GET
             headers:
@@ -321,6 +341,7 @@ collection:
               created: 1744642481511
               modified: 1744642485871
               isPrivate: false
+              description: ""
               sortKey: -1744642121495.5
             method: GET
             headers:
@@ -339,15 +360,16 @@ collection:
             meta:
               id: req_08b0d8e08cfe4a8a964ed91720fbff32
               created: 1744642506992
-              modified: 1745324231536
+              modified: 1748426538893
               isPrivate: false
+              description: ""
               sortKey: -1744642121395.5
             method: POST
             body:
               mimeType: application/json
               text: |-
                 {
-                  "volume_id": "f614b59b383844dd93f674bef4597169"
+                  "volume_id": "44b7934c51bf4a41b098266c7bf1c333"
                 }
             headers:
               - name: Content-Type
@@ -367,7 +389,7 @@ collection:
             meta:
               id: req_8e691868682c49bfaea30ec8d228ef34
               created: 1744642571913
-              modified: 1744644015831
+              modified: 1748274422340
               isPrivate: false
               description: Size is expressed in *Gigabytes*
               sortKey: -1744642270174.25
@@ -396,16 +418,17 @@ collection:
             meta:
               id: req_7be1e95cfc3b4e75b98e78f39d839388
               created: 1744642648345
-              modified: 1745324085251
+              modified: 1749736027800
               isPrivate: false
+              description: ""
               sortKey: -1744642195834.875
             method: POST
             body:
               mimeType: application/json
               text: |-
                 {
-                  "size": 32,
-                  "name": "volume",
+                  "size": 64,
+                  "name": "volume3",
                   "bootable": true,
                   "readonly": false,
                   "shareable": false,
@@ -429,15 +452,16 @@ collection:
             meta:
               id: req_f4dcfbf5d6e4486e833317bd3ceff21d
               created: 1744642718787
-              modified: 1745324165898
+              modified: 1748945420396
               isPrivate: false
+              description: ""
               sortKey: -1744641972766.75
             method: POST
             body:
               mimeType: application/json
               text: |-
                 {
-                  "volume_id": "488f6b23fa2d4c36851ca77d5ca299b2"
+                  "volume_id": "f614b59b383844dd93f674bef4597169"
                 }
             headers:
               - name: Content-Type
@@ -458,6 +482,7 @@ collection:
           created: 1744642881113
           modified: 1744642885292
           sortKey: -1744642881113
+          description: ""
         children:
           - url: http://localhost:37777
             name: health
@@ -466,6 +491,7 @@ collection:
               created: 1744644215621
               modified: 1744644227735
               isPrivate: false
+              description: ""
               sortKey: -1744644222280
             method: GET
             headers:
