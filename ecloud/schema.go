@@ -1,8 +1,6 @@
 package ecloud
 
 import (
-	"strconv"
-
 	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema"
 )
 
@@ -28,12 +26,11 @@ func ServerFromSchema(s schema.Server) *Server {
 		Labels:    s.Labels,
 	}
 
-	// Convert volumes
+	// Convert volumes // TODO: correct?
 	for _, vol := range s.Volumes {
-		id, _ := strconv.Atoi(vol.VolumeID)
-		server.Volumes = append(server.Volumes, &Volume{
-			ID:   id,
-			Name: vol.Name,
+		server.Volumes = append(server.Volumes, &schema.StorageVolume{
+			VolumeID:   vol.VolumeID,
+			Name: 		vol.Name,
 		})
 	}
 

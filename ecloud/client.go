@@ -1,7 +1,5 @@
 package ecloud
 
-// TODO: fallo simile ad hetzner
-
 import (
 	"fmt"
 	"net/http"
@@ -19,7 +17,8 @@ type Response struct {
 	body []byte
 }
 
-// Meson endpoints of supportd Cloud Providers
+// Meson endpoints of supportd Cloud Providers 
+// TODO: they will be deprecated in the future when deamons will take care of the provider assignment
 const (
 	ArubaCloudEU = "http://192.168.1.103" // = "https://eu.arubacloud.public.elemento.cloud/api/v1.0"
 	OvhEU        = "http://192.168.1.103" // = "https://eu.ovh.public.elemento.cloud/api/v1.0"
@@ -63,6 +62,7 @@ type Client struct {
 	Server  ServerClient
 	Network NetworkClient
 	SSHKey  SSHKeyClient
+	Volume  VolumeClient
 
 	// TODO
 }

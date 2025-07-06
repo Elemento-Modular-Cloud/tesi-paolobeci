@@ -49,7 +49,7 @@ type Info struct {
 	Name          string              `json:"vm_name"`
 }
 type CreateComputeRequest struct {
-	// elemento fields
+	// Elemento fields
 	Info          Info                `json:"info"`
 	Slots         int                 `json:"slots"`
 	Overprovision int                 `json:"overprovision"`
@@ -62,14 +62,13 @@ type CreateComputeRequest struct {
 	Pci           []string            `json:"pci"`
 	Volumes       []map[string]string `json:"volumes"`
 	Netdevs       []string            `json:"netdevs"`
-
-	// kOps required
-	// UserData   string             `json:"user_data,omitempty"`
-	// Labels     *map[string]string `json:"labels,omitempty"`
-	// SSHKeys    []int              `json:"ssh_keys,omitempty"`
-	// Datacenter string             `json:"datacenter,omitempty"`
-	// Networks   []int              `json:"networks,omitempty"`
 }
+// kOps required ?
+// UserData   string             `json:"user_data,omitempty"`
+// Labels     *map[string]string `json:"labels,omitempty"`
+// SSHKeys    []int              `json:"ssh_keys,omitempty"`
+// Datacenter string             `json:"datacenter,omitempty"`
+// Networks   []int              `json:"networks,omitempty"`
 
 type CreateComputeResponse struct {
 	Server       Server  `json:"server"`
@@ -77,7 +76,7 @@ type CreateComputeResponse struct {
 }
 
 // -------- COMPUTE STATUS --------
-type ComputeStatusResponse []Server
+type GetComputeResponse []Server
 
 type Server struct {
 	UniqueID      string            `json:"uniqueID"`
@@ -90,7 +89,7 @@ type Server struct {
 	ReqJSON       RequestConfig     `json:"req_json"`
 	CreationDate  time.Time         `json:"creation_date"`
 	Labels        map[string]string `json:"labels"`
-	Volumes       []Volume          `json:"volumes"`
+	Volumes       []StorageVolume   `json:"volumes"`
 }
 
 type RequestConfig struct {
@@ -101,32 +100,12 @@ type RequestConfig struct {
 	Flags         []string `json:"flags"`
 	RamSize       float64  `json:"ramsize"`
 	ReqECC        bool     `json:"reqECC"`
-	Volumes       []Volume `json:"volumes"`
+	Volumes       []StorageVolume `json:"volumes"`
 	PciDevs       []string `json:"pcidevs"`
 	NetDevs       []string `json:"netdevs"`
 	OSFamily      string   `json:"os_family"`
 	OSFlavour     string   `json:"os_flavour"`
 	VMName        string   `json:"vm_name"`
-}
-
-type Volume struct {
-	Bootable       bool     `json:"bootable"`
-	CreatorID      string   `json:"creatorID"`
-	Name           string   `json:"name"`
-	NumServers     int      `json:"nservers"`
-	Own            bool     `json:"own"`
-	Private        bool     `json:"private"`
-	ReadOnly       bool     `json:"readonly"`
-	Server         string   `json:"server"`
-	Servers        []string `json:"servers"`
-	ServerURL      string   `json:"serverurl"`
-	Shareable      bool     `json:"shareable"`
-	Size           int64    `json:"size"`
-	VolumeID       string   `json:"volumeID"`
-	Vid            string   `json:"vid"`
-	SelectedServer string   `json:"selected_server"`
-	ISCSIName      string   `json:"iscsi_name"`
-	Driver         string   `json:"driver"`
 }
 
 type NetworkConfig struct {
@@ -166,10 +145,8 @@ type ComputeTemplate struct {
 	} `json:"ram"`
 }
 
-// -------- COMPUTE DELETE --------
+// -------- DELETE COMPUTE --------
 type DeleteComputeRequest struct {
-	LocalIndex string `json:"local_index"`
+	VolumeID string `json:"volume_id"`
 }
 type DeleteComputeResponse struct{}
-
-// -------- STORAGE --------

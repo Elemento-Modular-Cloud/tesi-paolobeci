@@ -158,7 +158,7 @@ func TestAPIEndpoints(t *testing.T) {
 	testEndpoint(t, "Compute Status", func() error {
 		maxRetries := 10
 		for i := 0; i < maxRetries; i++ {
-			resp, err := client.ComputeStatus()
+			resp, err := client.GetCompute()
 			if err != nil {
 				return err
 			}
@@ -190,7 +190,7 @@ func TestAPIEndpoints(t *testing.T) {
 
 	testEndpoint(t, "Delete Compute", func() error {
 		req := schema.DeleteComputeRequest{
-			LocalIndex: serverID,
+			VolumeID: serverID,
 		}
 		resp, err := client.DeleteCompute(req)
 		if err != nil {
@@ -215,8 +215,8 @@ func TestAPIEndpoints(t *testing.T) {
 	// })
 
 	testEndpoint(t, "Can Create Storage", func() error {
-		reqBody := map[string]interface{}{
-			"size": 100,
+		reqBody := schema.CanCreateStorageRequest{
+			Size: 100,
 		}
 		resp, err := client.CanCreateStorage(reqBody)
 		if err != nil {
@@ -227,13 +227,13 @@ func TestAPIEndpoints(t *testing.T) {
 	})
 
 	testEndpoint(t, "Create Storage", func() error {
-		req := map[string]interface{}{
-			"size":      100,
-			"name":      "test-volume",
-			"bootable":  true,
-			"readonly":  false,
-			"shareable": false,
-			"private":   true,
+		req := schema.CreateStorageRequest{
+			Size:      100,
+			Name:      "test-volume",
+			Bootable:  true,
+			Readonly:  false,
+			Shareable: false,
+			Private:   true,
 		}
 		resp, err := client.CreateStorage(req)
 		if err != nil {
@@ -253,10 +253,10 @@ func TestAPIEndpoints(t *testing.T) {
 	})
 
 	testEndpoint(t, "Get Storage By ID", func() error {
-		req := map[string]string{
-			"volumeID": "d596ec1f15f7444b93e294c3cdbc1905", // TODO: cambia con quello del create
+		reqBody := schema.GetStorageByIDRequest{
+			VolumeID: "d596ec1f15f7444b93e294c3cdbc1905",
 		}
-		resp, err := client.GetStorageByID(req)
+		resp, err := client.GetStorageByID(reqBody)
 		if err != nil {
 			return err
 		}

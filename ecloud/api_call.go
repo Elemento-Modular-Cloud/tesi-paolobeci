@@ -55,7 +55,7 @@ func (c *Client) HealthCheckCompute() (*schema.HealthCheckComputeResponse, error
 }
 
 // Can allocate a new compute instance
-func (c *Client) CanAllocateCompute(reqBody interface{}) (*schema.CanAllocateComputeResponse, error) {
+func (c *Client) CanAllocateCompute(reqBody schema.CanAllocateComputeRequest) (*schema.CanAllocateComputeResponse, error) {
 	// Original API call code
 	// var res schema.CanAllocateComputeResponse
 	// err := c.CallAPI("POST", "17777", "/api/v1.0/client/vm/canallocate", reqBody, &res, true)
@@ -82,7 +82,7 @@ func (c *Client) CanAllocateCompute(reqBody interface{}) (*schema.CanAllocateCom
 }
 
 // Create a new compute instance
-func (c *Client) CreateCompute(reqBody interface{}) (*schema.CreateComputeResponse, error) {
+func (c *Client) CreateCompute(reqBody schema.CreateComputeRequest) (*schema.CreateComputeResponse, error) {
 	var res schema.CreateComputeResponse
 	err := c.CallAPI("POST", "17777", "/api/v1.0/client/vm/register", reqBody, &res, true)
 	if err != nil {
@@ -92,8 +92,8 @@ func (c *Client) CreateCompute(reqBody interface{}) (*schema.CreateComputeRespon
 }
 
 // Compute instances status
-func (c *Client) ComputeStatus() (*schema.ComputeStatusResponse, error) {
-	var res schema.ComputeStatusResponse
+func (c *Client) GetCompute() (*schema.GetComputeResponse, error) {
+	var res schema.GetComputeResponse
 	err := c.CallAPI("GET", "17777", "/api/v1.0/client/vm/status", nil, &res, true)
 	if err != nil {
 		return nil, err
@@ -120,7 +120,7 @@ func (c *Client) ComputeTemplates() (*schema.ComputeTemplatesResponse, error) {
 }
 
 // Compute instance delete
-func (c *Client) DeleteCompute(reqBody interface{}) (*schema.DeleteComputeResponse, error) {
+func (c *Client) DeleteCompute(reqBody schema.DeleteComputeRequest) (*schema.DeleteComputeResponse, error) {
 	var res schema.DeleteComputeResponse
 	err := c.CallAPI("POST", "17777", "/api/v1.0/client/vm/delete", reqBody, &res, true)
 	if err != nil {
@@ -140,7 +140,7 @@ func (c *Client) HealthCheckStorage() (*schema.HealthCheckStorageResponse, error
 }
 
 // Can create a new storage volume
-func (c *Client) CanCreateStorage(reqBody interface{}) (*schema.CanCreateStorageResponse, error) {
+func (c *Client) CanCreateStorage(reqBody schema.CanCreateStorageRequest) (*schema.CanCreateStorageResponse, error) {
 	var res schema.CanCreateStorageResponse
 	err := c.CallAPI("POST", "27777", "/api/v1.0/client/volume/cancreate", reqBody, &res, true)
 	if err != nil {
@@ -150,7 +150,7 @@ func (c *Client) CanCreateStorage(reqBody interface{}) (*schema.CanCreateStorage
 }
 
 // Create a new storage volume
-func (c *Client) CreateStorage(reqBody interface{}) (*schema.CreateStorageResponse, error) {
+func (c *Client) CreateStorage(reqBody schema.CreateStorageRequest) (*schema.CreateStorageResponse, error) {
 	var res schema.CreateStorageResponse
 	err := c.CallAPI("POST", "27777", "/api/v1.0/client/volume/create", reqBody, &res, true)
 	if err != nil {
@@ -170,7 +170,7 @@ func (c *Client) GetStorage() (*schema.GetStorageResponse, error) {
 }
 
 // Get storage by ID
-func (c *Client) GetStorageByID(reqBody interface{}) (*schema.GetStorageByIDResponse, error) {
+func (c *Client) GetStorageByID(reqBody schema.GetStorageByIDRequest) (*schema.GetStorageByIDResponse, error) {
 	var res schema.GetStorageByIDResponse
 	err := c.CallAPI("POST", "27777", "/api/v1.0/client/volume/info", reqBody, &res, true)
 	if err != nil {
@@ -192,7 +192,7 @@ func (c *Client) DeleteStorage(reqBody interface{}) (*schema.DeleteStorageRespon
 // ------------------------------ MOCKED ENDPOINTS -----------------------------
 
 // Get a Network by Id
-func (c *Client) GetNetworkById(reqBody interface{}) (*schema.NetworkGetResponse, error) {
+func (c *Client) GetNetworkByID(reqBody interface{}) (*schema.NetworkGetResponse, error) {
 	var res schema.NetworkGetResponse
 
 	//! Mock data

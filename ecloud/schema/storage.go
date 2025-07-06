@@ -1,16 +1,26 @@
 package schema
 
 // -------- STORAGE --------
+// Elemento storage representation
 type StorageVolume struct {
 	VolumeID  string   `json:"volumeID"`
-	Name      string   `json:"name"`
 	CreatorID string   `json:"creator_id"`
+	Size      int      `json:"size"` // Bytes
+	Name      string   `json:"name"`
+	Format	  string   `json:"format"`
 	Private   bool     `json:"private"`
 	Bootable  bool     `json:"bootable"`
 	Readonly  bool     `json:"readonly"`
 	Shareable bool     `json:"shareable"`
-	Size      int      `json:"size"` // Bytes
-	Serverurl string   `json:"serverurl"`
+	Clonable  bool     `json:"clonable"`
+	Alg       string   `json:"alg"`
+	Bus       string   `json:"bus"`
+	Cloudinit bool     `json:"cloudinit"`
+	Ceph      bool     `json:"ceph"`
+	Exported  bool     `json:"exported"`
+	SizeOnDisk int     `json:"sizeOnDisk"` // Bytes
+	LastUpdated string `json:"lastUpdated"`
+	ServerUrl string   `json:"serverurl"`
 	Server    string   `json:"server"`
 	Own       bool     `json:"own"`
 	Nservers  int      `json:"nservers"`

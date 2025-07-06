@@ -22,7 +22,7 @@ type Server struct {
 	Datacenter   Datacenter
 	BackupWindow string
 	Labels       map[string]string
-	Volumes      []*Volume
+	Volumes      []*schema.StorageVolume
 }
 
 // ServerType represents a server type in the Elemento.
@@ -106,8 +106,8 @@ type ServerClient struct {
 
 // GetByID retrieves a server by its ID. If the server does not exist, nil is returned.
 func (c *ServerClient) GetByID(ctx context.Context, id string) (*schema.Server, error) {
-	// Call ComputeStatus and get the full status response
-	statusResp, err := c.client.ComputeStatus()
+	// Call GetCompute and get the full status response
+	statusResp, err := c.client.GetCompute()
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,6 @@ type ServerListOpts struct {
 	ListOpts
 	Name   string
 	Status []ServerStatus
-	Sort   []string
 }
 
 // AllWithOpts returns all servers for the given options.
@@ -152,18 +151,36 @@ func (c *ServerClient) AllWithOpts(ctx context.Context, opts ServerListOpts) ([]
 }
 
 // List returns a list of servers for a specific page.
-//
-// Please note that filters specified in opts are not taken into account
-// when their value corresponds to their zero value or when they are empty.
 func (c *ServerClient) List(ctx context.Context, opts ServerListOpts) ([]*Server, *Response, error) {
-	body, err := c.client.ComputeStatus()
+	body, err := c.client.GetCompute()
 	if err != nil {
 		return nil, nil, err
 	}
 
 	servers := make([]*Server, 0, len(*body))
 	for _, s := range *body {
-		servers = append(servers, ServerFromSchema(s))
+		server := ServerFromSchema(s)
+
+		// Filter by name if specified
+		if opts.Name != "" && server.Name != opts.Name {
+			continue
+		}
+
+		// Filter by status if specified
+		if len(opts.Status) > 0 {
+			statusMatch := false
+			for _, status := range opts.Status {
+				if server.Status == status {
+					statusMatch = true
+					break
+				}
+			}
+			if !statusMatch {
+				continue
+			}
+		}
+
+		servers = append(servers, server)
 	}
 	return servers, &Response{}, nil
 }
@@ -182,29 +199,6 @@ func (c *ServerClient) GetByName(ctx context.Context, name string) (*Server, *Re
 
 // Update updates a server.
 func (c *ServerClient) Update(ctx context.Context, server *Server, opts ServerUpdateOpts) (*Server, *Response, error) {
-	// reqBody := schema.ServerUpdateRequest{
-	// 	Name: opts.Name,
-	// }
-	// if opts.Labels != nil {
-	// 	reqBody.Labels = &opts.Labels
-	// }
-	// reqBodyData, err := json.Marshal(reqBody)
-	// if err != nil {
-	// 	return nil, nil, err
-	// }
-
-	// path := fmt.Sprintf("/servers/%d", server.ID)
-	// req, err := c.client.NewRequest(ctx, "PUT", path, bytes.NewReader(reqBodyData))
-	// if err != nil {
-	// 	return nil, nil, err
-	// }
-
-	// respBody := schema.ServerUpdateResponse{}
-	// resp, err := c.client.Do(req, &respBody)
-	// if err != nil {
-	// 	return nil, resp, err
-	// }
-	// return ServerFromSchema(respBody.Server), resp, nil
 	return nil, nil, fmt.Errorf("server update operation is not yet supported")
 }
 
@@ -225,7 +219,7 @@ type ServerCreateOpts struct {
 	StartAfterCreate *bool
 	Labels           map[string]string
 	Automount        *bool
-	Volumes          []*Volume
+	Volumes          []*schema.StorageVolume
 	Networks         []*Network
 }
 
@@ -299,14 +293,14 @@ func (c *ServerClient) Create(ctx context.Context, opts ServerCreateOpts) (Serve
 	// 	}
 	// }
 
-	// Add volumes if provided
-	if len(opts.Volumes) > 0 {
-		reqBody.Volumes = make([]map[string]string, len(opts.Volumes))
-		for i, volume := range opts.Volumes {
-			reqBody.Volumes[i] = map[string]string{
-				"vid": strconv.Itoa(volume.ID),
-			}
+	// Add volumes if asked
+	// TODO: should i add a default boot volume even if not specified by kops?
+	if opts.ServerType.Disk > 0 {
+		volumeID, err := createVolume(ctx, c.client, opts.Name, opts.ServerType.Disk)
+		if err != nil {
+			return ServerCreateResult{}, nil, fmt.Errorf("failed to create boot volume: %w", err)
 		}
+		reqBody.Volumes = append(reqBody.Volumes, map[string]string{"vid": volumeID})
 	}
 
 	// Add networks if provided
@@ -354,7 +348,10 @@ type ServerCreateResult struct {
 
 // Deletes a server
 func (c *ServerClient) Delete(ctx context.Context, server *Server) (*schema.DeleteComputeResponse, error) {
-	resp, err := c.client.DeleteCompute(server)
+	reqBody := schema.DeleteComputeRequest{
+		VolumeID: server.ID,
+	}
+	resp, err := c.client.DeleteCompute(reqBody)
 	return resp, err
 }
 
@@ -447,4 +444,28 @@ func parseImageToOS(image string) (string, string) {
 
 	// Default fallback
 	return "linux", "ubuntu"
+}
+
+// Creates the boot volume to provide into the vm in the creation phase
+func createVolume(ctx context.Context, client *Client, serverName string, diskSizeGB int) (string, error) {
+	// Create volume client
+	volumeClient := &VolumeClient{client: client}
+
+	// Create volume options
+	volumeOpts := VolumeCreateOpts{
+		Name:      fmt.Sprintf("%s-boot", serverName),
+		Size:      diskSizeGB,
+		Bootable:  true,
+		Readonly:  false,
+		Shareable: false,
+		Private:   true,
+	}
+
+	// Create the volume
+	volume, _, err := volumeClient.Create(ctx, volumeOpts)
+	if err != nil {
+		return "", fmt.Errorf("failed to create volume: %w", err)
+	}
+
+	return volume.VolumeID, nil
 }

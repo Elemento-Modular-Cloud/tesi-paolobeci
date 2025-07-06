@@ -58,7 +58,7 @@ type NetworkClient struct {
 // GetByID retrieves a network by its ID. If the network does not exist, nil is returned.
 func (c *NetworkClient) GetByID(ctx context.Context, id int) (*Network, *schema.NetworkGetResponse, error) {
 	var body schema.NetworkGetResponse
-	resp, err := c.client.GetNetworkById(&body)
+	resp, err := c.client.GetNetworkByID(&body)
 	if err != nil {
 		if IsError(err, ErrorCodeNotFound) {
 			return nil, resp, nil
@@ -222,7 +222,7 @@ func NetworkServerFromSchema(s schema.Server) *Server {
 		Datacenter:   Datacenter{},
 		BackupWindow: "",
 		Labels:       s.Labels,
-		Volumes:      []*Volume{},
+		Volumes:      []*schema.StorageVolume{},
 	}
 }
 
