@@ -159,6 +159,26 @@ func (c *Client) CreateStorage(reqBody schema.CreateStorageRequest) (*schema.Cre
 	return &res, nil
 }
 
+// Create new storage volume with specified image
+func (c *Client) CreateStorageImage(reqBody schema.CreateStorageImageRequest) (*schema.CreateStorageImageResponse, error) {
+	var res schema.CreateStorageImageResponse
+	err := c.CallAPI("POST", "27777", "/api/v1.0/client/volume/cloudinit/create", reqBody, &res, true)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+// Create new cloudinit volume
+func (c *Client) CreateStorageCloudInit(reqBody schema.CreateStorageCloudInitRequest) (*schema.CreateStorageCloudInitResponse, error) {
+	var res schema.CreateStorageCloudInitResponse
+	err := c.CallAPI("POST", "27777", "/api/v1.0/client/volume/cloudinit/metadata", reqBody, &res, true)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 // Get storages
 func (c *Client) GetStorage() (*schema.GetStorageResponse, error) {
 	var res schema.GetStorageResponse

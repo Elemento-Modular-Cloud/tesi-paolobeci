@@ -48,6 +48,7 @@ type VolumeCreateOpts struct {
 	Shareable bool
 	Private   bool
 	Labels    map[string]string
+	Url	      string
 }
 
 // Create creates a new volume.
@@ -67,51 +68,73 @@ func (c *VolumeClient) Create(ctx context.Context, opts VolumeCreateOpts) (*sche
 		return nil, nil, fmt.Errorf("the config provided cannot be created: %w", err)
 	}
 
-	// Prepare the create request
-	reqBody := schema.CreateStorageRequest{
-		Name:      opts.Name,
-		Size:      opts.Size,
-		Bootable:  opts.Bootable,
-		Readonly:  opts.Readonly,
-		Shareable: opts.Shareable,
-		Private:   opts.Private,
-	}
-
-	// Create the storage volume
-	_, err = c.client.CreateStorage(reqBody)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create storage volume: %w", err)
-	}
-
-	// Get the created volume with retry logic
 	var createdVolume *schema.StorageVolume
-	maxRetries := 10
-	retryDelay := time.Millisecond * 500
 
-	for i := 0; i < maxRetries; i++ {
-		volumes, err := c.client.GetStorage()
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to retrieve created volume: %w", err)
+	if opts.Url == "" {
+		reqBody := schema.CreateStorageRequest{
+			Name:      opts.Name,
+			Size:      opts.Size,
+			Bootable:  opts.Bootable,
+			Readonly:  opts.Readonly,
+			Shareable: opts.Shareable,
+			Private:   opts.Private,
 		}
 
-		// Search for the volume with the matching unique name
-		for _, vol := range *volumes {
-			if vol.Name == reqBody.Name {
-				createdVolume = &vol
+		// Create the storage volume
+		_, err = c.client.CreateStorage(reqBody)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to create storage volume: %w", err)
+		}
+
+		// Get the created volume with retry logic
+		// TODO: this could be useless since the create will return the volume id
+		maxRetries := 10
+		retryDelay := time.Millisecond * 500
+
+		for i := 0; i < maxRetries; i++ {
+			volumes, err := c.client.GetStorage()
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to retrieve created volume: %w", err)
+			}
+
+			// Search for the volume with the matching unique name
+			for _, vol := range *volumes {
+				if vol.Name == reqBody.Name {
+					createdVolume = &vol
+					break
+				}
+			}
+
+			if createdVolume != nil {
 				break
 			}
+
+			// Wait before retrying
+			time.Sleep(retryDelay)
+		}
+	} else {
+		reqBody := schema.CreateStorageImageRequest{
+			Name:       opts.Name,
+			Size:       opts.Size,
+			Alg:		"cp",
+			Format:		"qcow2",
+			Bus:		"virtio",
+			Clonable:	true,
+			Private:    false,
+			Url:	    opts.Url,
 		}
 
-		if createdVolume != nil {
-			break
+		// Create the boot volume
+		res, err := c.client.CreateStorageImage(reqBody)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to create storage volume: %w", err)
 		}
 
-		// Wait before retrying
-		time.Sleep(retryDelay)
+		fmt.Printf("CreateStorageImage response: %+v\n", res)
 	}
 
 	if createdVolume == nil {
-		return nil, nil, fmt.Errorf("created volume with name '%s' not found in storage list after %d retries", reqBody.Name, maxRetries)
+		return nil, nil, fmt.Errorf("created volume with name '%s'", opts.Name)
 	}
 
 	return createdVolume, &Response{}, nil

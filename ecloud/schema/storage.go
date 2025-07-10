@@ -51,6 +51,36 @@ type CreateStorageRequest struct {
 
 type CreateStorageResponse struct{}
 
+// -------- CRETATE STORAGE WITH IMAGE --------
+type CreateStorageImageRequest struct {
+	Name		string	`json:"name"`
+	Private 	bool	`json:"private"`
+	Clonable	bool 	`json:"clonable"`
+	Alg			string	`json:"alg"`
+	Format		string	`json:"format"`
+	Bus			string	`json:"bus"`
+	Size		int		`json:"size"`
+	Url			string	`json:"url"`
+}
+
+type CreateStorageImageResponse struct{
+
+}
+
+// -------- CREATE CLOUDINIT VOLUME -------
+type CreateStorageCloudInitRequest struct {
+	CreatorID		string	`json:"creatorID"`
+	Name			string	`json:"name"`
+	Private 		bool	`json:"private"`
+	Clonable		bool 	`json:"clonable"`
+	Alg				string	`json:"alg"`
+	ExpectedFiles	int		`json:"expectedFiles"`
+}
+
+type CreateStorageCloudInitResponse struct {
+
+}
+
 // -------- GET STORAGE --------
 type GetStorageResponse []StorageVolume
 

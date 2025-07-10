@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
+	// "strconv"
 	"strings"
 	"time"
+
+	"os"
 
 	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema"
 )
@@ -246,6 +248,7 @@ func (c *ServerClient) Create(ctx context.Context, opts ServerCreateOpts) (Serve
 	// Prepare the request body according to the schema
 	reqBody := schema.CreateComputeRequest{
 		Info:    schema.Info{Name: opts.Name},
+		Flags:   []string{"sse2"},
 		Misc:    schema.Misc{OsFamily: osFamily, OsFlavour: osFlavour},
 		Pci:     []string{},
 		Volumes: []map[string]string{},
@@ -262,6 +265,7 @@ func (c *ServerClient) Create(ctx context.Context, opts ServerCreateOpts) (Serve
 			if err == nil {
 				fmt.Printf("DEBUG: Successfully converted ServerType name '%s' to size config - Slots: %d, Ramsize: %d MB\n", opts.ServerType.Name, sizeConfig.Slots, sizeConfig.Ramsize)
 				reqBody.Slots = sizeConfig.Slots
+				reqBody.Overprovision = sizeConfig.Slots
 				reqBody.Ramsize = sizeConfig.Ramsize
 				// Use the ServerType's architecture if specified, otherwise default to x86_64
 				if opts.ServerType.Architecture != "" {
@@ -273,24 +277,31 @@ func (c *ServerClient) Create(ctx context.Context, opts ServerCreateOpts) (Serve
 				fmt.Printf("DEBUG: Failed to convert ServerType name '%s' to size config: %v\n", opts.ServerType.Name, err)
 				// Fall back to using the ServerType as-is (will result in 0 slots/ramsize)
 				reqBody.Slots = opts.ServerType.Cores
+				reqBody.Overprovision = opts.ServerType.Cores
 				reqBody.Ramsize = int(opts.ServerType.Memory * 1024) // Convert GB to MB
 				reqBody.Archs = []string{string(opts.ServerType.Architecture)}
 			}
 		} else {
 			// Use ServerType as-is
 			reqBody.Slots = opts.ServerType.Cores
+			reqBody.Overprovision = opts.ServerType.Cores
 			reqBody.Ramsize = int(opts.ServerType.Memory * 1024) // Convert GB to MB
 			reqBody.Archs = []string{string(opts.ServerType.Architecture)}
 		}
 	}
 
-	// TODO: configure cloudinit with default SSH key
-	// Add SSH keys if provided, needs work on the elemento side
-	// if len(opts.SSHKeys) > 0 {
-	// 	reqBody.SSHKeys = make([]int, len(opts.SSHKeys))
-	// 	for i, sshKey := range opts.SSHKeys {
-	// 		reqBody.SSHKeys[i] = sshKey.ID
-	// 	}
+	// Add default boot volume to the vm
+	// TODO: configure cloudinit con default SSH key
+	// sshKeyStrings := make([]string, len(opts.SSHKeys))
+	// for i, k := range opts.SSHKeys {
+	// 	sshKeyStrings[i] = k.PublicKey
+	// }
+	// bootvolumeIDs, err := createBootVolume(ctx, c.client, opts.Name, osFlavour, sshKeyStrings, opts.UserData)
+	// if err != nil {
+	// 	return ServerCreateResult{}, nil, fmt.Errorf("failed to create boot volume: %w", err)
+	// }
+	// for _, vid := range bootvolumeIDs {
+	// 	reqBody.Volumes = append(reqBody.Volumes, map[string]string{"vid": vid})
 	// }
 
 	// Add volumes if asked
@@ -298,18 +309,18 @@ func (c *ServerClient) Create(ctx context.Context, opts ServerCreateOpts) (Serve
 	if opts.ServerType.Disk > 0 {
 		volumeID, err := createVolume(ctx, c.client, opts.Name, opts.ServerType.Disk)
 		if err != nil {
-			return ServerCreateResult{}, nil, fmt.Errorf("failed to create boot volume: %w", err)
+			return ServerCreateResult{}, nil, fmt.Errorf("failed to create volume: %w", err)
 		}
 		reqBody.Volumes = append(reqBody.Volumes, map[string]string{"vid": volumeID})
 	}
 
-	// Add networks if provided
-	if len(opts.Networks) > 0 {
-		reqBody.Netdevs = make([]string, len(opts.Networks))
-		for i, network := range opts.Networks {
-			reqBody.Netdevs[i] = strconv.Itoa(network.ID)
-		}
-	}
+	// TODO: Add networks if provided
+	// if len(opts.Networks) > 0 {
+	// 	reqBody.Netdevs = make([]string, len(opts.Networks))
+	// 	for i, network := range opts.Networks {
+	// 		reqBody.Netdevs[i] = strconv.Itoa(network.ID)
+	// 	}
+	// }
 
 	// Create the compute instance
 	resp, err := c.client.CreateCompute(reqBody)
@@ -446,14 +457,13 @@ func parseImageToOS(image string) (string, string) {
 	return "linux", "ubuntu"
 }
 
-// Creates the boot volume to provide into the vm in the creation phase
+// Creates a volume to provide into the vm in the creation phase
 func createVolume(ctx context.Context, client *Client, serverName string, diskSizeGB int) (string, error) {
-	// Create volume client
 	volumeClient := &VolumeClient{client: client}
 
 	// Create volume options
 	volumeOpts := VolumeCreateOpts{
-		Name:      fmt.Sprintf("%s-boot", serverName),
+		Name:      serverName,
 		Size:      diskSizeGB,
 		Bootable:  true,
 		Readonly:  false,
@@ -468,4 +478,45 @@ func createVolume(ctx context.Context, client *Client, serverName string, diskSi
 	}
 
 	return volume.VolumeID, nil
+}
+
+// Creates the default boot volume with the image requested, returns the volumeID of:
+// - boot volume with the image of the requested OS
+// - volume containing the cloudinit
+func createBootVolume(ctx context.Context, client *Client, serverName string, osFlavour string, sshKey []string, userData string) ([]string, error) {
+	volumeClient := &VolumeClient{client: client}
+
+	// Create boot volume with specified image
+	//! TODO: only ubuntu image supported for now, add more os and version support in the future
+	volumeOpts := VolumeCreateOpts{
+		Name: fmt.Sprintf("%s-boot", serverName),
+		Size: 50,
+		Url:  "https://cloud-images.ubuntu.com/oracular/current/oracular-server-cloudimg-amd64.img",
+	}
+
+	volume, _, err := volumeClient.Create(ctx, volumeOpts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create volume: %w", err)
+	}
+
+	// Create volume with cloudinit
+	// TODO: ssh-key is needed? YES
+	SaveUserDataToFile(userData) // TEST
+
+	return []string{volume.VolumeID}, nil
+}
+
+// SaveUserDataToFile saves the userData string to a file named 'user-data.yaml' at the project root.
+func SaveUserDataToFile(userData string) error {
+	file, err := os.Create("user-data.yaml")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(userData)
+	if err != nil {
+		return err
+	}
+	return nil
 }
