@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	// "strconv"
+
 	"strings"
 	"time"
 
@@ -292,17 +292,17 @@ func (c *ServerClient) Create(ctx context.Context, opts ServerCreateOpts) (Serve
 
 	// Add default boot volume to the vm
 	// TODO: configure cloudinit con default SSH key
-	// sshKeyStrings := make([]string, len(opts.SSHKeys))
-	// for i, k := range opts.SSHKeys {
-	// 	sshKeyStrings[i] = k.PublicKey
-	// }
-	// bootvolumeIDs, err := createBootVolume(ctx, c.client, opts.Name, osFlavour, sshKeyStrings, opts.UserData)
-	// if err != nil {
-	// 	return ServerCreateResult{}, nil, fmt.Errorf("failed to create boot volume: %w", err)
-	// }
-	// for _, vid := range bootvolumeIDs {
-	// 	reqBody.Volumes = append(reqBody.Volumes, map[string]string{"vid": vid})
-	// }
+	sshKeyStrings := make([]string, len(opts.SSHKeys))
+	for i, k := range opts.SSHKeys {
+		sshKeyStrings[i] = k.PublicKey
+	}
+	bootvolumeIDs, err := createBootVolume(ctx, c.client, opts.Name, osFlavour, sshKeyStrings, opts.UserData)
+	if err != nil {
+		return ServerCreateResult{}, nil, fmt.Errorf("failed to create boot volume: %w", err)
+	}
+	for _, vid := range bootvolumeIDs {
+		reqBody.Volumes = append(reqBody.Volumes, map[string]string{"vid": vid})
+	}
 
 	// Add volumes if asked
 	// TODO: should i add a default boot volume even if not specified by kops?
@@ -472,12 +472,12 @@ func createVolume(ctx context.Context, client *Client, serverName string, diskSi
 	}
 
 	// Create the volume
-	volume, _, err := volumeClient.Create(ctx, volumeOpts)
+	volumeID, _, err := volumeClient.Create(ctx, volumeOpts)
 	if err != nil {
 		return "", fmt.Errorf("failed to create volume: %w", err)
 	}
 
-	return volume.VolumeID, nil
+	return volumeID, nil
 }
 
 // Creates the default boot volume with the image requested, returns the volumeID of:
@@ -485,6 +485,7 @@ func createVolume(ctx context.Context, client *Client, serverName string, diskSi
 // - volume containing the cloudinit
 func createBootVolume(ctx context.Context, client *Client, serverName string, osFlavour string, sshKey []string, userData string) ([]string, error) {
 	volumeClient := &VolumeClient{client: client}
+	volumeIDs := []string{}
 
 	// Create boot volume with specified image
 	//! TODO: only ubuntu image supported for now, add more os and version support in the future
@@ -494,21 +495,63 @@ func createBootVolume(ctx context.Context, client *Client, serverName string, os
 		Url:  "https://cloud-images.ubuntu.com/oracular/current/oracular-server-cloudimg-amd64.img",
 	}
 
-	volume, _, err := volumeClient.Create(ctx, volumeOpts)
+	volumeIDboot, _, err := volumeClient.Create(ctx, volumeOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create volume: %w", err)
 	}
+	volumeIDs = append(volumeIDs, volumeIDboot)
 
-	// Create volume with cloudinit
-	// TODO: ssh-key is needed? YES
-	SaveUserDataToFile(userData) // TEST
+	// Create volume with cloud-init
+	// TODO: set ssh-key to user-data config file
+	filePath := "cloud-config/user-data.yaml"
+	input, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read user-data.yaml: %w", err)
+	}
 
-	return []string{volume.VolumeID}, nil
+	lines := strings.Split(string(input), "\n")
+	for i, line := range lines {
+		if strings.TrimSpace(line) == "echo \"Insert dynamic script here...\"" {
+			lines[i] = userData
+		}
+	}
+
+	output := strings.Join(lines, "\n")
+	err = os.WriteFile(filePath, []byte(output), 0644)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write user-data.yaml: %w", err)
+	}
+
+	cloudinitOpts := CloudInitCreateOpts{
+		Name: fmt.Sprintf("%s-cloudinit", serverName),
+	}
+	volumeIDcloudinit, _, err := volumeClient.CreateCloudInit(ctx, cloudinitOpts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cloud-init volume: %w", err)
+	}
+	volumeIDs = append(volumeIDs, volumeIDcloudinit)
+
+	// Feed other files inside cloud-init volume
+	// TODO: capire se ha senso, ho bisogno solo dello user-data in realtà
+	// response, _, err := volumeClient.FeedFileIntoCloudInitStorage(ctx, volumeIDcloudinit)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// switch response {
+	// case "CONTINUE":
+	// 	// handle continue if needed
+	// 	// TODO: se ho bisogno di inviare un 3 o più files
+	// case "OK":
+	// 	// File received and loaded, all files received
+	// default:
+	// 	// Error on the Elemento side
+	// }
+
+	return volumeIDs, nil
 }
 
-// SaveUserDataToFile saves the userData string to a file named 'user-data.yaml' at the project root.
-func SaveUserDataToFile(userData string) error {
-	file, err := os.Create("user-data.yaml")
+func SaveCloudInitToFile(userData string, fileName string) error {
+	file, err := os.Create(fileName)
 	if err != nil {
 		return err
 	}

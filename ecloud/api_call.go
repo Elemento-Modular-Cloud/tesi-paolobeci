@@ -2,11 +2,13 @@ package ecloud
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema"
@@ -172,11 +174,102 @@ func (c *Client) CreateStorageImage(reqBody schema.CreateStorageImageRequest) (*
 // Create new cloudinit volume
 func (c *Client) CreateStorageCloudInit(reqBody schema.CreateStorageCloudInitRequest) (*schema.CreateStorageCloudInitResponse, error) {
 	var res schema.CreateStorageCloudInitResponse
-	err := c.CallAPI("POST", "27777", "/api/v1.0/client/volume/cloudinit/metadata", reqBody, &res, true)
+
+	// Marshal reqBody to JSON and encode as base64
+	jsonBytes, err := json.Marshal(reqBody)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal reqBody: %w", err)
 	}
+	encodedPayload := base64.StdEncoding.EncodeToString(jsonBytes)
+
+	// Fixed file path
+	filepath := "@/Users/paolob/Downloads/cloud-config.yml" // Change as needed
+	file, err := os.Open(filepath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	// Read file bytes
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Build URL with base64-encoded payload as last path segment
+	urlPath := "/api/v1.0/client/volume/cloudinit/metadata/" + encodedPayload
+	url := c.endpoint + ":27777" + urlPath
+
+	// Create HTTP request with file bytes as body
+	req, err := http.NewRequest("POST", url, bytes.NewReader(fileBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
 	return &res, nil
+}
+
+func (c *Client) FeedFileIntoCloudInitStorage(reqBody schema.FeedFileIntoCloudInitStorageRequest) (string, error) {
+	// Marshal reqBody to JSON and encode as base64
+	jsonBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal reqBody: %w", err)
+	}
+	encodedPayload := base64.StdEncoding.EncodeToString(jsonBytes)
+
+	// Fixed file path
+	filepath := "@/Users/paolob/Downloads/cloud-config.yml" // Change as needed
+	file, err := os.Open(filepath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	// Read file bytes
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Build URL with base64-encoded payload as last path segment
+	urlPath := "/api/v1.0/client/volume/cloudinit/metadata/" + encodedPayload
+	url := c.endpoint + ":27777" + urlPath
+
+	// Create HTTP request with file bytes as body
+	req, err := http.NewRequest("POST", url, bytes.NewReader(fileBytes))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case 206:
+		return "CONTINUE", nil
+	case 200:
+		return "OK", nil
+	default:
+		return "ERROR", nil
+	}
 }
 
 // Get storages

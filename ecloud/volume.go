@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema"
 )
@@ -48,13 +47,13 @@ type VolumeCreateOpts struct {
 	Shareable bool
 	Private   bool
 	Labels    map[string]string
-	Url	      string
+	Url       string
 }
 
 // Create creates a new volume.
-func (c *VolumeClient) Create(ctx context.Context, opts VolumeCreateOpts) (*schema.StorageVolume, *Response, error) {
+func (c *VolumeClient) Create(ctx context.Context, opts VolumeCreateOpts) (string, *Response, error) {
 	if err := opts.Validate(); err != nil {
-		return nil, nil, err
+		return "", nil, err
 	}
 
 	// Prepare the can create request
@@ -65,10 +64,8 @@ func (c *VolumeClient) Create(ctx context.Context, opts VolumeCreateOpts) (*sche
 	// First check if we can create the storage volume
 	_, err := c.client.CanCreateStorage(reqBodyCanCreate)
 	if err != nil {
-		return nil, nil, fmt.Errorf("the config provided cannot be created: %w", err)
+		return "", nil, fmt.Errorf("the config provided cannot be created: %w", err)
 	}
-
-	var createdVolume *schema.StorageVolume
 
 	if opts.Url == "" {
 		reqBody := schema.CreateStorageRequest{
@@ -81,63 +78,67 @@ func (c *VolumeClient) Create(ctx context.Context, opts VolumeCreateOpts) (*sche
 		}
 
 		// Create the storage volume
-		_, err = c.client.CreateStorage(reqBody)
+		createdVolume, err := c.client.CreateStorage(reqBody)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create storage volume: %w", err)
+			return "", nil, fmt.Errorf("failed to create storage volume: %w", err)
 		}
+		return createdVolume.VolumeID, &Response{}, nil
 
-		// Get the created volume with retry logic
-		// TODO: this could be useless since the create will return the volume id
-		maxRetries := 10
-		retryDelay := time.Millisecond * 500
-
-		for i := 0; i < maxRetries; i++ {
-			volumes, err := c.client.GetStorage()
-			if err != nil {
-				return nil, nil, fmt.Errorf("failed to retrieve created volume: %w", err)
-			}
-
-			// Search for the volume with the matching unique name
-			for _, vol := range *volumes {
-				if vol.Name == reqBody.Name {
-					createdVolume = &vol
-					break
-				}
-			}
-
-			if createdVolume != nil {
-				break
-			}
-
-			// Wait before retrying
-			time.Sleep(retryDelay)
-		}
 	} else {
 		reqBody := schema.CreateStorageImageRequest{
-			Name:       opts.Name,
-			Size:       opts.Size,
-			Alg:		"cp",
-			Format:		"qcow2",
-			Bus:		"virtio",
-			Clonable:	true,
-			Private:    false,
-			Url:	    opts.Url,
+			Name:     opts.Name,
+			Size:     opts.Size,
+			Alg:      "cp",
+			Format:   "qcow2",
+			Bus:      "virtio",
+			Clonable: true,
+			Private:  false,
+			Url:      opts.Url,
 		}
 
 		// Create the boot volume
-		res, err := c.client.CreateStorageImage(reqBody)
+		createdVolume, err := c.client.CreateStorageImage(reqBody)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create storage volume: %w", err)
+			return "", nil, fmt.Errorf("failed to create storage volume: %w", err)
 		}
 
-		fmt.Printf("CreateStorageImage response: %+v\n", res)
+		fmt.Printf("CreateStorageImage response: %+v\n", createdVolume)
+		return createdVolume.VolumeID, &Response{}, nil
+	}
+}
+
+// CloudInitCreateOpts specifies options for creating a new cloud-init.
+type CloudInitCreateOpts struct {
+	Name      string
+}
+
+func (c *VolumeClient) CreateCloudInit(ctx context.Context, opts CloudInitCreateOpts) (string, *Response, error) {
+	reqBody := schema.CreateStorageCloudInitRequest{
+		Name: opts.Name,
+		Private: false,
+		Bootable: true,
+		Clonable: false,
+		Alg: "no",
+		ExpectedFiles: 2,  // Minimum number of files accepted are 2
+	}
+	createdVolume, err := c.client.CreateStorageCloudInit(reqBody)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to create cloud-init volume: %w", err)
 	}
 
-	if createdVolume == nil {
-		return nil, nil, fmt.Errorf("created volume with name '%s'", opts.Name)
+	return createdVolume.VolumeID, &Response{}, nil
+}
+
+func (c *VolumeClient) FeedFileIntoCloudInitStorage(ctx context.Context, volumeID string) (string, *Response, error) {
+	reqBody := schema.FeedFileIntoCloudInitStorageRequest{
+		VolumeID: volumeID,
+	}
+	response, err := c.client.FeedFileIntoCloudInitStorage(reqBody)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to create cloud-init volume: %w", err)
 	}
 
-	return createdVolume, &Response{}, nil
+	return response, &Response{}, nil
 }
 
 // Validate checks if options are valid.

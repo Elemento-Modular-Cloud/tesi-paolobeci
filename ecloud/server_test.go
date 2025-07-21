@@ -1,6 +1,7 @@
 package ecloud
 
 import (
+	"context"
 	"testing"
 )
 
@@ -101,5 +102,36 @@ func TestConvertServerSize(t *testing.T) {
 				t.Errorf("ConvertServerSize() ramsize = %v, want %v", config.Ramsize, tt.expectedRamsize)
 			}
 		})
+	}
+}
+
+func TestCreateBootVolume(t *testing.T) {
+	ctx := context.Background()
+
+	// Mock client
+	mockClient, _ := NewClient("test", "1")
+
+	// Call the function with a mock saveCloudInitToFile
+	volumeIDs, err := createBootVolume(
+		ctx,
+		mockClient,
+		"test-server",
+		"ubuntu",
+		[]string{"ssh-rsa AAA..."},
+		"#cloud-config",
+	)
+	if err != nil {
+		t.Fatalf("createBootVolume returned error: %v", err)
+	}
+
+	// Check results
+	expected := []string{"boot-volume-id", "cloudinit-volume-id"}
+	if len(volumeIDs) != len(expected) {
+		t.Fatalf("expected %d volume IDs, got %d", len(expected), len(volumeIDs))
+	}
+	for i, id := range expected {
+		if volumeIDs[i] != id {
+			t.Errorf("expected volume ID %q, got %q", id, volumeIDs[i])
+		}
 	}
 }

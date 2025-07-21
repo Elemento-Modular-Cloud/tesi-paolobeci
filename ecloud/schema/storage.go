@@ -49,7 +49,20 @@ type CreateStorageRequest struct {
 	Private   bool   `json:"private"`
 }
 
-type CreateStorageResponse struct{}
+type CreateStorageResponse struct{
+	Name		string	`json:"name"`
+	Private 	bool	`json:"private"`
+	Clonable	bool 	`json:"clonable"`
+	Alg			string	`json:"alg"`
+	Format		string	`json:"img_format"`
+	Bus			string	`json:"bus"`
+	Size		int		`json:"size"`
+	Shareable	bool	`json:"shareable"`
+	Readonly	bool	`json:"readonly"`
+	Bootable	bool	`json:"bootable"`
+	VolumeID	string	`json:"vid"`
+	CreatorID	string	`json:"creatorID"`
+}
 
 // -------- CRETATE STORAGE WITH IMAGE --------
 type CreateStorageImageRequest struct {
@@ -64,21 +77,33 @@ type CreateStorageImageRequest struct {
 }
 
 type CreateStorageImageResponse struct{
-
+	Name		string	`json:"name"`
+	Private 	bool	`json:"private"`
+	Clonable	bool 	`json:"clonable"`
+	Alg			string	`json:"alg"`
+	Format		string	`json:"img_format"`
+	Bus			string	`json:"bus"`
+	Size		int		`json:"size"`
+	Url			string	`json:"url"`
+	VolumeID	string	`json:"vid"`		
 }
 
 // -------- CREATE CLOUDINIT VOLUME -------
 type CreateStorageCloudInitRequest struct {
-	CreatorID		string	`json:"creatorID"`
 	Name			string	`json:"name"`
 	Private 		bool	`json:"private"`
+	Bootable		bool	`json:"bootable"`
 	Clonable		bool 	`json:"clonable"`
 	Alg				string	`json:"alg"`
 	ExpectedFiles	int		`json:"expectedFiles"`
 }
 
 type CreateStorageCloudInitResponse struct {
+	VolumeID		string	`json:"vid"`
+}
 
+type FeedFileIntoCloudInitStorageRequest struct {
+	VolumeID		string	`json:"vid"`
 }
 
 // -------- GET STORAGE --------
