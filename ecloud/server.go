@@ -511,7 +511,7 @@ func createBootVolume(ctx context.Context, client *Client, serverName string, os
 
 	lines := strings.Split(string(input), "\n")
 	for i, line := range lines {
-		if strings.TrimSpace(line) == "echo \"Insert dynamic script here...\"" {
+		if strings.TrimSpace(line) == "data" {
 			lines[i] = userData
 		}
 	}
@@ -531,21 +531,19 @@ func createBootVolume(ctx context.Context, client *Client, serverName string, os
 	}
 	volumeIDs = append(volumeIDs, volumeIDcloudinit)
 
-	// Feed other files inside cloud-init volume
-	// TODO: capire se ha senso, ho bisogno solo dello user-data in realtà
-	// response, _, err := volumeClient.FeedFileIntoCloudInitStorage(ctx, volumeIDcloudinit)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// switch response {
-	// case "CONTINUE":
-	// 	// handle continue if needed
-	// 	// TODO: se ho bisogno di inviare un 3 o più files
-	// case "OK":
-	// 	// File received and loaded, all files received
-	// default:
-	// 	// Error on the Elemento side
-	// }
+	// Feed other file inside cloud-init volume
+	response, _, err := volumeClient.FeedFileIntoCloudInitStorage(ctx, volumeIDcloudinit)
+	if err != nil {
+		return nil, err
+	}
+	switch response {
+	case "CONTINUE":
+		// Se ho bisogno di inviare un 3 o più files
+	case "OK":
+		// File received and loaded, all files received
+	default:
+		// Error on the Elemento side
+	}
 
 	return volumeIDs, nil
 }

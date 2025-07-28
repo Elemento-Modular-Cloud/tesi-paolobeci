@@ -30,7 +30,7 @@ const (
 
 // Network represents a network in Elemento Cloud.
 type Network struct {
-	ID         int
+	ID         string
 	Name       string
 	Created    time.Time
 	IPRange    *net.IPNet
@@ -56,20 +56,20 @@ type NetworkClient struct {
 }
 
 // GetByID retrieves a network by its ID. If the network does not exist, nil is returned.
-func (c *NetworkClient) GetByID(ctx context.Context, id int) (*Network, *schema.NetworkGetResponse, error) {
-	var body schema.NetworkGetResponse
-	resp, err := c.client.GetNetworkByID(&body)
+func (c *NetworkClient) GetByID(ctx context.Context, id int) (*Network, *schema.GetNetworkByIDResponse, error) {
+	var body schema.GetNetworkByIDRequest
+	resp, err := c.client.GetNetworkByID(body)
 	if err != nil {
 		if IsError(err, ErrorCodeNotFound) {
 			return nil, resp, nil
 		}
 		return nil, nil, err
 	}
-	return NetworkFromSchema(body.Network), resp, nil
+	return NetworkFromSchema(resp.Network), resp, nil
 }
 
 // GetByName retrieves a network by its name. If the network does not exist, nil is returned.
-func (c *NetworkClient) GetByName(ctx context.Context, name string) (*Network, *schema.NetworkListResponse, error) {
+func (c *NetworkClient) GetByName(ctx context.Context, name string) (*Network, *schema.ListNetworkResponse, error) {
 	if name == "" {
 		return nil, nil, nil
 	}
@@ -102,14 +102,13 @@ func (l NetworkListOpts) values() url.Values {
 //
 // Please note that filters specified in opts are not taken into account
 // when their value corresponds to their zero value or when they are empty.
-func (c *NetworkClient) List(ctx context.Context, opts NetworkListOpts) ([]*Network, *schema.NetworkListResponse, error) {
-	var body schema.NetworkListResponse
-	resp, err := c.client.ListNetwork(&body)
+func (c *NetworkClient) List(ctx context.Context, opts NetworkListOpts) ([]*Network, *schema.ListNetworkResponse, error) {
+	resp, err := c.client.ListNetwork()
 	if err != nil {
 		return nil, nil, err
 	}
-	Networks := make([]*Network, 0, len(body.Networks))
-	for _, s := range body.Networks {
+	Networks := make([]*Network, 0, len(resp.Networks))
+	for _, s := range resp.Networks {
 		if opts.Name != "" && s.Name != opts.Name {
 			continue
 		}
@@ -144,8 +143,14 @@ func (c *NetworkClient) AllWithOpts(ctx context.Context, opts NetworkListOpts) (
 }
 
 // Delete deletes a network.
-func (c *NetworkClient) Delete(ctx context.Context, network *Network) (*Response, error) {
-	return c.client.DeleteNetwork(network)
+func (c *NetworkClient) Delete(ctx context.Context, network *Network) (*Response, *schema.DeleteNetworkResponse, error) {
+	var body schema.DeleteNetworkRequest
+	body.NetworkID = network.ID
+	resp, err := c.client.DeleteNetwork(body)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &Response{}, resp, nil
 }
 
 // NetworkCreateOpts specifies options for creating a new network.
@@ -168,49 +173,70 @@ func (o NetworkCreateOpts) Validate() error {
 	return nil
 }
 
+// getLastIP returns the last IP address in the given network range
+func getLastIP(ipnet *net.IPNet) net.IP {
+	ip := ipnet.IP.To4()
+	if ip == nil {
+		ip = ipnet.IP.To16()
+	}
+	network := ip.Mask(ipnet.Mask)
+
+	// Calculate the broadcast address (last IP in range)
+	broadcast := make(net.IP, len(network))
+	copy(broadcast, network)
+
+	for i := 0; i < len(network); i++ {
+		broadcast[i] |= ^ipnet.Mask[i]
+	}
+	return broadcast
+}
+
 // Create creates a new network.
 func (c *NetworkClient) Create(ctx context.Context, opts NetworkCreateOpts) (*Network, *Response, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, nil, err
 	}
-	reqBody := schema.NetworkCreateRequest{
-		Name:    opts.Name,
-		IPRange: opts.IPRange.String(),
-	}
-	for _, subnet := range opts.Subnets {
-		s := schema.NetworkSubnet{
-			Type:        string(subnet.Type),
-			IPRange:     subnet.IPRange,
-			NetworkZone: string(subnet.NetworkZone),
-		}
-		if subnet.VSwitchID != 0 {
-			s.VSwitchID = subnet.VSwitchID
-		}
-		reqBody.Subnets = append(reqBody.Subnets, s)
-	}
-	if opts.Labels != nil {
-		reqBody.Labels = &opts.Labels
+	reqBody := schema.CreateNetworkRequest{
+		ServerUrl: "https://172.16.24.228:7776",
+		Name:      opts.Name,
+		Type:      "libvirt",
+		Mode:      "",
+		Private:   true,
+		IP: []schema.NetworkIP{
+			{
+				Address: opts.IPRange,
+				DHCP: schema.DHCP{
+					Start: &net.IPNet{IP: opts.IPRange.IP.Mask(opts.IPRange.Mask), Mask: opts.IPRange.Mask},
+					End:   &net.IPNet{IP: getLastIP(opts.IPRange), Mask: opts.IPRange.Mask},
+				},
+			},
+		},
+		Routes: []string{
+			opts.Routes,
+		},
 	}
 
-	resp, err := c.client.CreateNetwork(reqBody)
+	_, err := c.client.CreateNetwork(reqBody)
 	if err != nil {
 		return nil, nil, err
 	}
-	return NetworkFromSchema(resp.Network), &Response{}, nil
+	// No response from the API as of now, so we return nil
+
+	return nil, &Response{}, nil
 }
 
 // NetworkSubnetFromSchema converts a schema.NetworkSubnet to a NetworkSubnet.
-func NetworkSubnetFromSchema(s schema.NetworkSubnet) NetworkSubnet {
-	return NetworkSubnet{
-		Type:        NetworkSubnetType(s.Type),
-		IPRange:     s.IPRange,
-		NetworkZone: NetworkZone(s.NetworkZone),
-		Gateway:     s.Gateway,
-		VSwitchID:   s.VSwitchID,
-	}
-}
+// func NetworkSubnetFromSchema(s schema.NetworkSubnet) NetworkSubnet {
+// 	return NetworkSubnet{
+// 		Type:        NetworkSubnetType(s.Type),
+// 		IPRange:     s.IPRange,
+// 		NetworkZone: NetworkZone(s.NetworkZone),
+// 		Gateway:     s.Gateway,
+// 		VSwitchID:   s.VSwitchID,
+// 	}
+// }
 
-// NetworkServerFromSchema converts a schema.Server to a Server.
+// NetworkServerFromSchema converts a schema.Server to a Server compatible with kOps.
 func NetworkServerFromSchema(s schema.Server) *Server {
 	return &Server{
 		ID:           s.UniqueID,
@@ -226,35 +252,36 @@ func NetworkServerFromSchema(s schema.Server) *Server {
 	}
 }
 
-// NetworkFromSchema converts a schema.Network to a Network.
+// NetworkFromSchema converts a schema.Network to a Network compatible with kOps.
 func NetworkFromSchema(s schema.Network) *Network {
-	subnets := make([]NetworkSubnet, len(s.Subnets))
-	for i, subnet := range s.Subnets {
-		subnets[i] = NetworkSubnetFromSchema(subnet)
-	}
-	servers := make([]*Server, len(s.Servers))
-	for i, server := range s.Servers {
-		servers[i] = NetworkServerFromSchema(*server)
-	}
+	// subnets := make([]NetworkSubnet, len(s.Subnets))
+	// for i, subnet := range s.Subnets {
+	// 	subnets[i] = NetworkSubnetFromSchema(subnet)
+	// }
+	// servers := make([]*Server, len(s.Servers))
+	// for i, server := range s.Servers {
+	// 	servers[i] = NetworkServerFromSchema(*server)
+	// }
+
 	return &Network{
-		ID:         s.ID,
+		ID:         s.NetworkID,
 		Name:       s.Name,
-		Created:    s.Created,
-		IPRange:    s.IPRange,
-		Subnets:    subnets,
-		Routes:     s.Routes,
-		Servers:    servers,
-		Protection: s.Protection,
-		Labels:     s.Labels,
+		Created:    time.Now(),
+		IPRange:    s.IP.Address,
+		Subnets:    nil,
+		Routes:     s.Routes[0].Address.String(),
+		Servers:    nil,
+		Protection: s.Private,
+		Labels:     nil,
 	}
 }
 
-// // NetworkAddSubnetOpts specifies options for adding a subnet to a network.
+// NetworkAddSubnetOpts specifies options for adding a subnet to a network.
 // type NetworkAddSubnetOpts struct {
 // 	Subnet NetworkSubnet
 // }
 
-// // AddSubnet adds a subnet to a network.
+// AddSubnet adds a subnet to a network.
 // func (c *NetworkClient) AddSubnet(ctx context.Context, network *Network, opts NetworkAddSubnetOpts) (*Response, error) {
 // 	reqBody := schema.NetworkActionAddSubnetRequest{
 // 		Type:        string(opts.Subnet.Type),
@@ -285,12 +312,12 @@ func NetworkFromSchema(s schema.Network) *Network {
 // 	return resp, nil
 // }
 
-// // NetworkDeleteSubnetOpts specifies options for deleting a subnet from a network.
+// NetworkDeleteSubnetOpts specifies options for deleting a subnet from a network.
 // type NetworkDeleteSubnetOpts struct {
 // 	Subnet NetworkSubnet
 // }
 
-// // DeleteSubnet deletes a subnet from a network.
+// DeleteSubnet deletes a subnet from a network.
 // func (c *NetworkClient) DeleteSubnet(ctx context.Context, network *Network, opts NetworkDeleteSubnetOpts) (*Response, error) {
 // 	reqBody := schema.NetworkActionDeleteSubnetRequest{
 // 		IPRange: opts.Subnet.IPRange.String(),

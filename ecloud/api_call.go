@@ -6,10 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
+	"mime/multipart"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema"
 )
@@ -175,52 +174,74 @@ func (c *Client) CreateStorageImage(reqBody schema.CreateStorageImageRequest) (*
 func (c *Client) CreateStorageCloudInit(reqBody schema.CreateStorageCloudInitRequest) (*schema.CreateStorageCloudInitResponse, error) {
 	var res schema.CreateStorageCloudInitResponse
 
-	// Marshal reqBody to JSON and encode as base64
+	fmt.Printf("Marshalling request body: %+v\n", reqBody)
 	jsonBytes, err := json.Marshal(reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal reqBody: %w", err)
 	}
 	encodedPayload := base64.StdEncoding.EncodeToString(jsonBytes)
+	fmt.Printf("Encoded payload (base64): %s\n", encodedPayload)
 
-	// Fixed file path
-	filepath := "@/Users/paolob/Downloads/cloud-config.yml" // Change as needed
+	filepath := "cloud-config/user-data.yaml"
+	fmt.Printf("Opening file at path: %s\n", filepath)
 	file, err := os.Open(filepath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
 
-	// Read file bytes
-	fileBytes, err := io.ReadAll(file)
+	// Create multipart form
+	var requestBody bytes.Buffer
+	writer := multipart.NewWriter(&requestBody)
+
+	// Add file field
+	fileWriter, err := writer.CreateFormFile("file", filepath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
+		return nil, fmt.Errorf("failed to create form file: %w", err)
 	}
 
-	// Build URL with base64-encoded payload as last path segment
-	urlPath := "/api/v1.0/client/volume/cloudinit/metadata/" + encodedPayload
-	url := c.endpoint + ":27777" + urlPath
+	_, err = io.Copy(fileWriter, file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to copy file: %w", err)
+	}
 
-	// Create HTTP request with file bytes as body
-	req, err := http.NewRequest("POST", url, bytes.NewReader(fileBytes))
+	writer.Close()
+
+	// Build URL for the request
+	url := c.endpoint + ":27777/api/v1.0/client/volume/cloudinit/metadata/" + encodedPayload
+
+	// Create request with multipart body
+	req, err := http.NewRequest("POST", url, &requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
+	// Set the correct Content-Type
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	fmt.Println("Sending HTTP request...")
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		fmt.Println("Closing response body.")
+		resp.Body.Close()
+	}()
 
+	fmt.Printf("Received response with status code: %d\n", resp.StatusCode)
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("API error response body: %s\n", string(body))
 		return nil, fmt.Errorf("API error: %d - %s", resp.StatusCode, string(body))
 	}
 
+	fmt.Println("Decoding response body into struct...")
 	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
+	fmt.Printf("Decoded response: %+v\n", res)
 	return &res, nil
 }
 
@@ -233,7 +254,7 @@ func (c *Client) FeedFileIntoCloudInitStorage(reqBody schema.FeedFileIntoCloudIn
 	encodedPayload := base64.StdEncoding.EncodeToString(jsonBytes)
 
 	// Fixed file path
-	filepath := "@/Users/paolob/Downloads/cloud-config.yml" // Change as needed
+	filepath := "cloud-config/meta-data.yaml"
 	file, err := os.Open(filepath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %w", err)
@@ -293,7 +314,7 @@ func (c *Client) GetStorageByID(reqBody schema.GetStorageByIDRequest) (*schema.G
 }
 
 // Delete a storage volume
-func (c *Client) DeleteStorage(reqBody interface{}) (*schema.DeleteStorageResponse, error) {
+func (c *Client) DeleteStorage(reqBody schema.DeleteStorageRequest) (*schema.DeleteStorageResponse, error) {
 	var res schema.DeleteStorageResponse
 	err := c.CallAPI("POST", "27777", "/api/v1.0/client/volume/delete", reqBody, &res, true)
 	if err != nil {
@@ -305,123 +326,46 @@ func (c *Client) DeleteStorage(reqBody interface{}) (*schema.DeleteStorageRespon
 // ------------------------------ MOCKED ENDPOINTS -----------------------------
 
 // Get a Network by Id
-func (c *Client) GetNetworkByID(reqBody interface{}) (*schema.NetworkGetResponse, error) {
-	var res schema.NetworkGetResponse
+func (c *Client) GetNetworkByID(reqBody schema.GetNetworkByIDRequest) (*schema.GetNetworkByIDResponse, error) {
+	var res schema.GetNetworkByIDResponse
 
-	//! Mock data
-	_, ipnet, _ := net.ParseCIDR("10.0.0.0/24")
-	res.Network = schema.Network{
-		ID:      1,
-		Name:    "test-network",
-		Created: time.Now(),
-		IPRange: ipnet,
-		Subnets: []schema.NetworkSubnet{
-			{
-				Type:        "cloud",
-				IPRange:     ipnet,
-				NetworkZone: "eu-south",
-				Gateway:     net.ParseIP("10.0.0.1"),
-			},
-		},
-		Routes:     "",
-		Servers:    []*schema.Server{},
-		Protection: false,
-		Labels: map[string]string{
-			"environment": "test",
-		},
+	err := c.CallAPI("GET", "37777", "/api/v1.0/client/network/info", reqBody, &res, true)
+	if err != nil {
+		return nil, err
 	}
-
 	return &res, nil
 }
 
 // List all networks
-func (c *Client) ListNetwork(reqBody interface{}) (*schema.NetworkListResponse, error) {
-	var res schema.NetworkListResponse
+func (c *Client) ListNetwork() (*schema.ListNetworkResponse, error) {
+	var res schema.ListNetworkResponse
 
-	//! Mock data
-	_, ipnet1, _ := net.ParseCIDR("10.0.0.0/24")
-	_, ipnet2, _ := net.ParseCIDR("192.168.0.0/24")
-	res.Networks = []schema.Network{
-		{
-			ID:      1,
-			Name:    "test.k8s",
-			Created: time.Now(),
-			IPRange: ipnet1,
-			Subnets: []schema.NetworkSubnet{
-				{
-					Type:        "cloud",
-					IPRange:     ipnet1,
-					NetworkZone: "eu-south-1",
-					Gateway:     net.ParseIP("10.0.0.1"),
-				},
-			},
-			Routes:     "",
-			Servers:    []*schema.Server{},
-			Protection: false,
-			Labels: map[string]string{
-				"environment": "test",
-			},
-		},
-		{
-			ID:      2,
-			Name:    "test-network-2",
-			Created: time.Now(),
-			IPRange: ipnet2,
-			Subnets: []schema.NetworkSubnet{
-				{
-					Type:        "cloud",
-					IPRange:     ipnet2,
-					NetworkZone: "eu-south",
-					Gateway:     net.ParseIP("192.168.0.1"),
-				},
-			},
-			Routes:     "",
-			Servers:    []*schema.Server{},
-			Protection: false,
-			Labels: map[string]string{
-				"environment": "prod",
-			},
-		},
+	err := c.CallAPI("GET", "37777", "/api/v1.0/client/network/list", nil, &res, true)
+	if err != nil {
+		return nil, err
 	}
-
 	return &res, nil
 }
 
 // Delete a network
-func (c *Client) DeleteNetwork(network interface{}) (*Response, error) {
-	var res Response
+func (c *Client) DeleteNetwork(reqBody schema.DeleteNetworkRequest) (*schema.DeleteNetworkResponse, error) {
+	var res schema.DeleteNetworkResponse
 
-	//! Mock data - just return an empty response with 200 status
-	res.Response = &http.Response{
-		StatusCode: http.StatusOK,
+	err := c.CallAPI("DELETE", "37777", "/api/v1.0/client/network/delete", reqBody, &res, true)
+	if err != nil {
+		return nil, err
 	}
-
 	return &res, nil
 }
 
 // Create a network
-func (c *Client) CreateNetwork(network interface{}) (*schema.NetworkCreateResponse, error) {
-	var res schema.NetworkCreateResponse
+func (c *Client) CreateNetwork(network schema.CreateNetworkRequest) (*schema.CreateNetworkResponse, error) {
+	var res schema.CreateNetworkResponse
 
-	//! Mock data
-	req, ok := network.(schema.NetworkCreateRequest)
-	if !ok {
-		return nil, fmt.Errorf("invalid request type")
+	err := c.CallAPI("POST", "37777", "/api/v1.0/client/network/create", network, &res, true)
+	if err != nil {
+		return nil, err
 	}
-
-	_, ipnet, _ := net.ParseCIDR(req.IPRange)
-	res.Network = schema.Network{
-		ID:         3, // Increment from the last network ID
-		Name:       req.Name,
-		Created:    time.Now(),
-		IPRange:    ipnet,
-		Subnets:    req.Subnets,
-		Routes:     "",
-		Servers:    []*schema.Server{},
-		Protection: false,
-		Labels:     *req.Labels,
-	}
-
 	return &res, nil
 }
 

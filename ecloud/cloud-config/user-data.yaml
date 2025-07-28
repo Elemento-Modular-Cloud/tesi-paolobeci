@@ -18,7 +18,7 @@ write_files:
     content: |
       #!/bin/bash
       
-      echo "Insert dynamic script here..."
+      data
 
 # 3. Run the bash script using the 'runcmd' module
 runcmd:

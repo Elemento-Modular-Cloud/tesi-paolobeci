@@ -2,29 +2,44 @@ package schema
 
 import (
 	"net"
-	"time"
 )
 
 // Network represents a network in the API response
 type Network struct {
-	ID         int               `json:"id"`
-	Name       string            `json:"name"`
-	Created    time.Time         `json:"created"`
-	IPRange    *net.IPNet        `json:"ip_range"`
-	Subnets    []NetworkSubnet   `json:"subnets"`
-	Routes     string            `json:"routes"`
-	Servers    []*Server         `json:"servers"`
-	Protection bool              `json:"protection"`
-	Labels     map[string]string `json:"labels"`
+	CreatorID      string      `json:"creator_uid"`
+	DeviceName     string      `json:"device_name"`
+	IP             NetworkIP   `json:"ip"`
+	LibvirtNetwork string      `json:"libvirt_network"`
+	Name           string      `json:"network_name"`
+	NetworkID      string      `json:"network_uid"`
+	Private        bool        `json:"private"`
+	Routes         []Route     `json:"routes,omitempty"`
+	ServerUrl      []string    `json:"serverurl"`
+	Type           string      `json:"type"`
 }
 
-// NetworkSubnet represents a subnet in the API response
-type NetworkSubnet struct {
-	Type        string     `json:"type"`
-	IPRange     *net.IPNet `json:"ip_range"`
-	NetworkZone string     `json:"network_zone"`
-	Gateway     net.IP     `json:"gateway"`
-	VSwitchID   int        `json:"vswitch_id"`
+type Route struct {
+	Address *net.IPNet `json:"address"`
+	Prefix  int        `json:"prefix"`
+	Gateway net.IP     `json:"gateway"`
+}
+
+// NetworkIP represents an IP in the API response
+type NetworkIP struct {
+	Address *net.IPNet `json:"address"`
+	DHCP    DHCP       `json:"dhcp"`
+}
+
+type DHCP struct {
+	End   *net.IPNet `json:"end"`
+	Start *net.IPNet `json:"start"`
+	Hosts []Host     `json:"hosts,omitempty"`
+}
+
+type Host struct {
+	Mac     string     `json:"mac"`
+	Name    string     `json:"name,omitempty"`
+	Address *net.IPNet `json:"address,omitempty"`
 }
 
 // NetworkRoute represents a route in the API response
@@ -33,24 +48,36 @@ type NetworkRoute struct {
 	Gateway     net.IP     `json:"gateway"`
 }
 
-// Get network
-type NetworkGetResponse struct {
+// -------- NETWORK GET BY ID --------
+type GetNetworkByIDRequest struct {
+	NetworkID string `json:"network_uid"`
+}
+
+type GetNetworkByIDResponse struct {
 	Network Network `json:"network"`
 }
 
-// List network
-type NetworkListResponse struct {
+// -------- NETWORK LIST --------
+type ListNetworkResponse struct {
 	Networks []Network `json:"networks"`
 }
 
-// Create network
-type NetworkCreateRequest struct {
-	Name    string             `json:"name"`
-	IPRange string             `json:"ip_range"`
-	Subnets []NetworkSubnet    `json:"subnets,omitempty"`
-	Labels  *map[string]string `json:"labels,omitempty"`
+// -------- NETWORK CREATE --------
+type CreateNetworkRequest struct {
+	ServerUrl string      `json:"serverurl"`
+	Name      string      `json:"network_name"`
+	Type      string      `json:"type"`
+	Mode      string      `json:"mode,omitempty"`
+	Private   bool        `json:"private"`
+	IP        []NetworkIP `json:"ip"`
+	Routes    []string    `json:"routes,omitempty"`
 }
 
-type NetworkCreateResponse struct {
-	Network Network `json:"network"`
+type CreateNetworkResponse struct{}
+
+// -------- NETWORK DELETE --------
+type DeleteNetworkRequest struct {
+	NetworkID string `json:"network_uid"`
 }
+
+type DeleteNetworkResponse struct{}
