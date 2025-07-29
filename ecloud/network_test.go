@@ -3,8 +3,11 @@ package ecloud
 import (
 	"context"
 	"net"
+	"os"
 	"testing"
 	"time"
+
+	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema"
 )
 
 func TestNetworkFunctionalities(t *testing.T) {
@@ -13,14 +16,25 @@ func TestNetworkFunctionalities(t *testing.T) {
 	// Create a real client
 	client, err := NewClient("test-network-app", "1.0.0")
 	if err != nil {
-		t.Skipf("Skipping test: failed to create client: %v", err)
+		t.Errorf("Skipping test: failed to create client: %v", err)
+	}
+
+	// Login
+	body := &schema.LoginRequest{
+		Username: os.Getenv("ECL_USERNAME"),
+		Password: os.Getenv("ECL_PASSWORD"),
+	}
+	_, err = client.Login(body)
+	if err != nil {
+		t.Errorf("Skipping test: failed to login: %v", err)
+		return
 	}
 
 	// Create the network client
 	networkClient := &NetworkClient{client: client}
 
 	// Parse IP range for testing
-	_, ipRange, err := net.ParseCIDR("192.168.100.0/24")
+	_, ipRange, err := net.ParseCIDR("192.168.80.1/24")
 	if err != nil {
 		t.Fatalf("Failed to parse CIDR: %v", err)
 	}
@@ -36,7 +50,6 @@ func TestNetworkFunctionalities(t *testing.T) {
 		opts := NetworkCreateOpts{
 			Name:    testNetworkName,
 			IPRange: ipRange,
-			Routes:  "0.0.0.0/0 192.168.100.1",
 			Labels: map[string]string{
 				"environment": "test",
 				"purpose":     "integration-test",
@@ -44,24 +57,15 @@ func TestNetworkFunctionalities(t *testing.T) {
 		}
 
 		t.Logf("Creating network with options: %+v", opts)
-		network, resp, err := networkClient.Create(ctx, opts)
+		_, _, err := networkClient.Create(ctx, opts)
 
-		// Note: API might not be available, so we handle this gracefully
 		if err != nil {
-			t.Logf("Create network returned error (may be expected if API is not available): %v", err)
+			t.Errorf("Create network returned error (may be expected if API is not available): %v", err)
 			t.Skip("Skipping remaining tests due to API unavailability")
 			return
 		}
 
-		t.Logf("Create response: %+v", resp)
-
-		if network != nil {
-			createdNetwork = network
-			networkID = network.ID
-			t.Logf("Network created successfully with ID: %s", networkID)
-		} else {
-			t.Log("Network creation returned nil (API may not return the created network)")
-		}
+		t.Logf("Create OK")
 	})
 
 	t.Run("2_ListNetworks", func(t *testing.T) {
@@ -72,14 +76,14 @@ func TestNetworkFunctionalities(t *testing.T) {
 		t.Logf("Testing network listing...")
 
 		// Test listing all networks
-		networks, resp, err := networkClient.List(ctx, NetworkListOpts{})
+		networks, _, err := networkClient.List(ctx, NetworkListOpts{})
 		if err != nil {
-			t.Logf("List networks returned error: %v", err)
+			t.Errorf("List networks returned error: %v", err)
 			return
 		}
 
 		t.Logf("Listed %d networks", len(networks))
-		t.Logf("List response: %+v", resp)
+		// t.Logf("List response: %+v", resp)
 
 		for i, network := range networks {
 			t.Logf("Network %d: ID=%s, Name=%s, IPRange=%v", i+1, network.ID, network.Name, network.IPRange)
@@ -89,7 +93,7 @@ func TestNetworkFunctionalities(t *testing.T) {
 		t.Logf("Testing network listing with name filter...")
 		filteredNetworks, _, err := networkClient.List(ctx, NetworkListOpts{Name: testNetworkName})
 		if err != nil {
-			t.Logf("List networks with filter returned error: %v", err)
+			t.Errorf("List networks with filter returned error: %v", err)
 			return
 		}
 
@@ -110,13 +114,13 @@ func TestNetworkFunctionalities(t *testing.T) {
 
 		t.Logf("Testing get network by name...")
 
-		network, resp, err := networkClient.GetByName(ctx, testNetworkName)
+		network, _, err := networkClient.GetByName(ctx, testNetworkName)
 		if err != nil {
-			t.Logf("GetByName returned error: %v", err)
+			t.Errorf("GetByName returned error: %v", err)
 			return
 		}
 
-		t.Logf("GetByName response: %+v", resp)
+		// t.Logf("GetByName response: %+v", resp)
 
 		if network != nil {
 			t.Logf("Found network by name: ID=%s, Name=%s, IPRange=%v", network.ID, network.Name, network.IPRange)
@@ -126,7 +130,7 @@ func TestNetworkFunctionalities(t *testing.T) {
 			createdNetwork = network
 			networkID = network.ID
 		} else {
-			t.Logf("Network '%s' not found", testNetworkName)
+			t.Errorf("Network '%s' not found", testNetworkName)
 		}
 
 		// Test with empty name
@@ -136,7 +140,7 @@ func TestNetworkFunctionalities(t *testing.T) {
 		} else if emptyNetwork != nil {
 			t.Error("Expected nil network for empty name")
 		} else {
-			t.Log("GetByName with empty name correctly returned nil")
+			t.Logf("GetByName with empty name correctly returned nil")
 		}
 	})
 
@@ -147,15 +151,9 @@ func TestNetworkFunctionalities(t *testing.T) {
 
 		t.Logf("Testing get network by ID: %s", networkID)
 
-		// Note: The GetByID function expects an int, but our networkID is a string
-		// This might need to be adjusted based on the actual API implementation
-		t.Logf("Note: GetByID expects int but we have string ID - this may need API adjustment")
-
-		// For now, we'll test with a dummy ID since the function signature expects int
-		// In a real scenario, you'd need to convert or adjust the API
-		network, resp, err := networkClient.GetByID(ctx, 1) // Using dummy ID
+		network, resp, err := networkClient.GetByID(ctx, networkID)
 		if err != nil {
-			t.Logf("GetByID returned error: %v", err)
+			t.Errorf("GetByID returned error: %v", err)
 			return
 		}
 
@@ -164,7 +162,7 @@ func TestNetworkFunctionalities(t *testing.T) {
 		if network != nil {
 			t.Logf("Found network by ID: ID=%s, Name=%s, IPRange=%v", network.ID, network.Name, network.IPRange)
 		} else {
-			t.Log("Network not found by ID")
+			t.Errorf("Network not found by ID")
 		}
 	})
 
@@ -175,13 +173,12 @@ func TestNetworkFunctionalities(t *testing.T) {
 
 		t.Logf("Testing network deletion for network: %s", createdNetwork.Name)
 
-		resp, deleteResp, err := networkClient.Delete(ctx, createdNetwork)
+		_, deleteResp, err := networkClient.Delete(ctx, networkID)
 		if err != nil {
-			t.Logf("Delete network returned error: %v", err)
+			t.Errorf("Delete network returned error: %v", err)
 			return
 		}
 
-		t.Logf("Delete response: %+v", resp)
 		t.Logf("Delete API response: %+v", deleteResp)
 		t.Logf("Network '%s' deletion request completed", createdNetwork.Name)
 
@@ -196,31 +193,7 @@ func TestNetworkFunctionalities(t *testing.T) {
 		} else if network == nil {
 			t.Log("Network successfully deleted - not found in subsequent search")
 		} else {
-			t.Logf("Network still exists after deletion: %+v", network)
+			t.Errorf("Network still exists after deletion: %+v", network)
 		}
-	})
-
-	t.Run("6_TestAllNetworks", func(t *testing.T) {
-		t.Logf("Testing All() method...")
-
-		networks, err := networkClient.All(ctx)
-		if err != nil {
-			t.Logf("All() returned error: %v", err)
-			return
-		}
-
-		t.Logf("All() returned %d networks", len(networks))
-
-		// Test AllWithOpts
-		t.Logf("Testing AllWithOpts() method...")
-		networksWithOpts, err := networkClient.AllWithOpts(ctx, NetworkListOpts{
-			ListOpts: ListOpts{PerPage: 10},
-		})
-		if err != nil {
-			t.Logf("AllWithOpts() returned error: %v", err)
-			return
-		}
-
-		t.Logf("AllWithOpts() returned %d networks", len(networksWithOpts))
 	})
 }

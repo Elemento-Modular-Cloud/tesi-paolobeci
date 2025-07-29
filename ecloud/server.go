@@ -125,6 +125,18 @@ func (c *ServerClient) GetByID(ctx context.Context, id string) (*schema.Server, 
 	return nil, nil
 }
 
+// GetByName retrieves a server by its name. If the server does not exist, nil is returned.
+func (c *ServerClient) GetByName(ctx context.Context, name string) (*Server, *Response, error) {
+	if name == "" {
+		return nil, nil, nil
+	}
+	servers, response, err := c.List(ctx, ServerListOpts{Name: name})
+	if len(servers) == 0 {
+		return nil, response, err
+	}
+	return servers[0], response, err
+}
+
 // ServerListOpts specifies options for listing servers.
 type ServerListOpts struct {
 	ListOpts
@@ -132,27 +144,7 @@ type ServerListOpts struct {
 	Status []ServerStatus
 }
 
-// AllWithOpts returns all servers for the given options.
-func (c *ServerClient) AllWithOpts(ctx context.Context, opts ServerListOpts) ([]*Server, error) {
-	allServers := []*Server{}
-
-	err := c.client.all(func(page int) (*Response, error) {
-		opts.Page = page
-		servers, resp, err := c.List(ctx, opts)
-		if err != nil {
-			return resp, err
-		}
-		allServers = append(allServers, servers...)
-		return resp, nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return allServers, nil
-}
-
-// List returns a list of servers for a specific page.
+// List returns a list of servers.
 func (c *ServerClient) List(ctx context.Context, opts ServerListOpts) ([]*Server, *Response, error) {
 	body, err := c.client.GetCompute()
 	if err != nil {
@@ -185,18 +177,6 @@ func (c *ServerClient) List(ctx context.Context, opts ServerListOpts) ([]*Server
 		servers = append(servers, server)
 	}
 	return servers, &Response{}, nil
-}
-
-// GetByName retrieves a server by its name. If the server does not exist, nil is returned.
-func (c *ServerClient) GetByName(ctx context.Context, name string) (*Server, *Response, error) {
-	if name == "" {
-		return nil, nil, nil
-	}
-	servers, response, err := c.List(ctx, ServerListOpts{Name: name})
-	if len(servers) == 0 {
-		return nil, response, err
-	}
-	return servers[0], response, err
 }
 
 // Update updates a server.

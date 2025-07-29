@@ -79,10 +79,11 @@ func TestAPIEndpoints(t *testing.T) {
 		subSeparator)
 
 	// Test login
-	loginResp, err := client.Login(map[string]string{
-		"username": username,
-		"password": password,
-	})
+	body := &schema.LoginRequest{
+		Username: os.Getenv("ECL_USERNAME"),
+		Password: os.Getenv("ECL_PASSWORD"),
+	}
+	loginResp, err := client.Login(body)
 	if err != nil {
 		fmt.Printf("Login failed: %v\n", err)
 	} else {

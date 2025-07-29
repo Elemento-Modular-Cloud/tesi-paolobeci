@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net"
-	"net/url"
 	"time"
 
 	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema"
@@ -56,8 +55,9 @@ type NetworkClient struct {
 }
 
 // GetByID retrieves a network by its ID. If the network does not exist, nil is returned.
-func (c *NetworkClient) GetByID(ctx context.Context, id int) (*Network, *schema.GetNetworkByIDResponse, error) {
+func (c *NetworkClient) GetByID(ctx context.Context, uuid string) (*Network, *schema.GetNetworkByIDResponse, error) {
 	var body schema.GetNetworkByIDRequest
+	body.NetworkID = uuid
 	resp, err := c.client.GetNetworkByID(body)
 	if err != nil {
 		if IsError(err, ErrorCodeNotFound) {
@@ -87,28 +87,14 @@ type NetworkListOpts struct {
 	Sort []string
 }
 
-func (l NetworkListOpts) values() url.Values {
-	vals := l.ListOpts.Values()
-	if l.Name != "" {
-		vals.Add("name", l.Name)
-	}
-	for _, sort := range l.Sort {
-		vals.Add("sort", sort)
-	}
-	return vals
-}
-
-// List returns a list of networks for a specific page.
-//
-// Please note that filters specified in opts are not taken into account
-// when their value corresponds to their zero value or when they are empty.
+// List returns a list of networks.
 func (c *NetworkClient) List(ctx context.Context, opts NetworkListOpts) ([]*Network, *schema.ListNetworkResponse, error) {
 	resp, err := c.client.ListNetwork()
 	if err != nil {
 		return nil, nil, err
 	}
-	Networks := make([]*Network, 0, len(resp.Networks))
-	for _, s := range resp.Networks {
+	Networks := make([]*Network, 0, len(*resp))
+	for _, s := range *resp {
 		if opts.Name != "" && s.Name != opts.Name {
 			continue
 		}
@@ -117,35 +103,10 @@ func (c *NetworkClient) List(ctx context.Context, opts NetworkListOpts) ([]*Netw
 	return Networks, resp, nil
 }
 
-// All returns all networks.
-func (c *NetworkClient) All(ctx context.Context) ([]*Network, error) {
-	return c.AllWithOpts(ctx, NetworkListOpts{ListOpts: ListOpts{PerPage: 50}})
-}
-
-// AllWithOpts returns all networks for the given options.
-func (c *NetworkClient) AllWithOpts(ctx context.Context, opts NetworkListOpts) ([]*Network, error) {
-	allNetworks := []*Network{}
-
-	err := c.client.all(func(page int) (*Response, error) {
-		opts.Page = page
-		Networks, _, err := c.List(ctx, opts)
-		if err != nil {
-			return nil, err
-		}
-		allNetworks = append(allNetworks, Networks...)
-		return &Response{}, nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return allNetworks, nil
-}
-
 // Delete deletes a network.
-func (c *NetworkClient) Delete(ctx context.Context, network *Network) (*Response, *schema.DeleteNetworkResponse, error) {
+func (c *NetworkClient) Delete(ctx context.Context, uuid string) (*Response, *schema.DeleteNetworkResponse, error) {
 	var body schema.DeleteNetworkRequest
-	body.NetworkID = network.ID
+	body.NetworkID = uuid
 	resp, err := c.client.DeleteNetwork(body)
 	if err != nil {
 		return nil, nil, err
@@ -173,21 +134,59 @@ func (o NetworkCreateOpts) Validate() error {
 	return nil
 }
 
-// getLastIP returns the last IP address in the given network range
-func getLastIP(ipnet *net.IPNet) net.IP {
+// getFirstUsableIP returns the first usable IP address in the given network range (network + 1)
+func getFirstUsableIP(ipnet *net.IPNet) net.IP {
 	ip := ipnet.IP.To4()
 	if ip == nil {
 		ip = ipnet.IP.To16()
 	}
+
+	// Get the network address
 	network := ip.Mask(ipnet.Mask)
 
-	// Calculate the broadcast address (last IP in range)
+	// Create a copy and increment by 1 to get the first usable IP
+	firstUsable := make(net.IP, len(network))
+	copy(firstUsable, network)
+
+	// Increment the last octet by 1
+	for i := len(firstUsable) - 1; i >= 0; i-- {
+		firstUsable[i]++
+		if firstUsable[i] != 0 {
+			break
+		}
+	}
+
+	return firstUsable
+}
+
+// getLastUsableIP returns the last usable IP address in the given network range (broadcast - 1)
+func getLastUsableIP(ipnet *net.IPNet) net.IP {
+	ip := ipnet.IP.To4()
+	if ip == nil {
+		ip = ipnet.IP.To16()
+	}
+
+	// Get the network address
+	network := ip.Mask(ipnet.Mask)
+
+	// Calculate the broadcast address
 	broadcast := make(net.IP, len(network))
 	copy(broadcast, network)
 
+	// Set all host bits to 1 to get broadcast
 	for i := 0; i < len(network); i++ {
 		broadcast[i] |= ^ipnet.Mask[i]
 	}
+
+	// Subtract 1 from broadcast to get last usable IP
+	for i := len(broadcast) - 1; i >= 0; i-- {
+		if broadcast[i] > 0 {
+			broadcast[i]--
+			break
+		}
+		broadcast[i] = 255
+	}
+
 	return broadcast
 }
 
@@ -202,17 +201,17 @@ func (c *NetworkClient) Create(ctx context.Context, opts NetworkCreateOpts) (*Ne
 		Type:      "libvirt",
 		Mode:      "",
 		Private:   true,
-		IP: []schema.NetworkIP{
-			{
-				Address: opts.IPRange,
-				DHCP: schema.DHCP{
-					Start: &net.IPNet{IP: opts.IPRange.IP.Mask(opts.IPRange.Mask), Mask: opts.IPRange.Mask},
-					End:   &net.IPNet{IP: getLastIP(opts.IPRange), Mask: opts.IPRange.Mask},
-				},
+		IP: schema.NetworkIP{
+			Address: opts.IPRange.String(),
+			DHCP: schema.DHCP{
+				Start: getFirstUsableIP(opts.IPRange).String(),
+				End:   getLastUsableIP(opts.IPRange).String(),
 			},
 		},
-		Routes: []string{
-			opts.Routes,
+		Routes: []schema.Route{
+			{
+				Address: opts.Routes,
+			},
 		},
 	}
 
@@ -263,13 +262,28 @@ func NetworkFromSchema(s schema.Network) *Network {
 	// 	servers[i] = NetworkServerFromSchema(*server)
 	// }
 
+	// Parse the IP address string back to *net.IPNet
+	var ipRange *net.IPNet
+	if s.IP.Address != "" {
+		_, parsed, err := net.ParseCIDR(s.IP.Address)
+		if err == nil {
+			ipRange = parsed
+		}
+	}
+
+	// Get the first route address if available
+	var routesStr string
+	if len(s.Routes) > 0 {
+		routesStr = s.Routes[0].Address
+	}
+
 	return &Network{
 		ID:         s.NetworkID,
 		Name:       s.Name,
 		Created:    time.Now(),
-		IPRange:    s.IP.Address,
+		IPRange:    ipRange,
 		Subnets:    nil,
-		Routes:     s.Routes[0].Address.String(),
+		Routes:     routesStr,
 		Servers:    nil,
 		Protection: s.Private,
 		Labels:     nil,

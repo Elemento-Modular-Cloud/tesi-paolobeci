@@ -16,7 +16,7 @@ import (
 // ------------------------------ API CALLS FUNCTIONS -------------------------
 
 // Login to the API
-func (c *Client) Login(reqBody interface{}) (*schema.LoginResponse, error) {
+func (c *Client) Login(reqBody *schema.LoginRequest) (*schema.LoginResponse, error) {
 	var res schema.LoginResponse
 	err := c.CallAPI("POST", "47777", "/api/v1/authenticate/login", reqBody, &res, false)
 	if err != nil {
@@ -329,7 +329,7 @@ func (c *Client) DeleteStorage(reqBody schema.DeleteStorageRequest) (*schema.Del
 func (c *Client) GetNetworkByID(reqBody schema.GetNetworkByIDRequest) (*schema.GetNetworkByIDResponse, error) {
 	var res schema.GetNetworkByIDResponse
 
-	err := c.CallAPI("GET", "37777", "/api/v1.0/client/network/info", reqBody, &res, true)
+	err := c.CallAPI("POST", "37777", "/api/v1.0/client/network/info", reqBody, &res, true)
 	if err != nil {
 		return nil, err
 	}
