@@ -199,7 +199,7 @@ func (c *NetworkClient) Create(ctx context.Context, opts NetworkCreateOpts) (*Ne
 		ServerUrl: "https://172.16.24.228:7776",
 		Name:      opts.Name,
 		Type:      "libvirt",
-		Mode:      "",
+		Mode:      "route",
 		Private:   true,
 		IP: schema.NetworkIP{
 			Address: opts.IPRange.String(),
@@ -219,9 +219,22 @@ func (c *NetworkClient) Create(ctx context.Context, opts NetworkCreateOpts) (*Ne
 	if err != nil {
 		return nil, nil, err
 	}
-	// No response from the API as of now, so we return nil
+	
+	// Get the networks in order to pick the created network by name
+	listOpts := NetworkListOpts{
+		Name: opts.Name,
+	}
+	networks, _, err := c.List(ctx, listOpts)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	return nil, &Response{}, nil
+	// Return the created network (should be the first one with matching name)
+	if len(networks) == 0 {
+		return nil, nil, errors.New("network created but not found in list")
+	}
+
+	return networks[0], &Response{}, nil
 }
 
 // NetworkSubnetFromSchema converts a schema.NetworkSubnet to a NetworkSubnet.

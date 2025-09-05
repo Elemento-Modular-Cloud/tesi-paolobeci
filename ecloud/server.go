@@ -232,7 +232,8 @@ func (c *ServerClient) Create(ctx context.Context, opts ServerCreateOpts) (Serve
 		Misc:    schema.Misc{OsFamily: osFamily, OsFlavour: osFlavour},
 		Pci:     []string{},
 		Volumes: []map[string]string{},
-		Netdevs: []string{},
+		HasNetwork: true,
+		Networks: []string{},
 	}
 
 	// Add server type configuration
@@ -295,12 +296,15 @@ func (c *ServerClient) Create(ctx context.Context, opts ServerCreateOpts) (Serve
 	}
 
 	// TODO: Add networks if provided
-	// if len(opts.Networks) > 0 {
-	// 	reqBody.Netdevs = make([]string, len(opts.Networks))
-	// 	for i, network := range opts.Networks {
-	// 		reqBody.Netdevs[i] = strconv.Itoa(network.ID)
-	// 	}
-	// }
+	if len(opts.Networks) > 0 {
+		reqBody.Networks = make([]string, len(opts.Networks))
+		for i, network := range opts.Networks {
+			reqBody.Networks[i] = network.ID
+		}
+	}
+
+	// Wait 15 seconds to allow the volumes to be fully initialized
+	time.Sleep(15 * time.Second)
 
 	// Create the compute instance
 	resp, err := c.client.CreateCompute(reqBody)
@@ -472,7 +476,7 @@ func createBootVolume(ctx context.Context, client *Client, serverName string, os
 	volumeOpts := VolumeCreateOpts{
 		Name: fmt.Sprintf("%s-boot", serverName),
 		Size: 50,
-		Url:  "https://cloud-images.ubuntu.com/oracular/current/oracular-server-cloudimg-amd64.img",
+		Url:  "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img",
 	}
 
 	volumeIDboot, _, err := volumeClient.Create(ctx, volumeOpts)
@@ -482,26 +486,28 @@ func createBootVolume(ctx context.Context, client *Client, serverName string, os
 	volumeIDs = append(volumeIDs, volumeIDboot)
 
 	// Create volume with cloud-init
-	// TODO: set ssh-key to user-data config file
-	filePath := "cloud-config/user-data.yaml"
-	input, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read user-data.yaml: %w", err)
-	}
+	// TODO: set custom ssh-key to user-data config file, now it is always Paolo's SSH key
+	// TODO: insert kOps scipt on variable userData into user-data cloudinit file
+	// filePath := "cloud-config/user-data"
+	// input, err := os.ReadFile(filePath)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to read user-data: %w", err)
+	// }
 
-	lines := strings.Split(string(input), "\n")
-	for i, line := range lines {
-		if strings.TrimSpace(line) == "data" {
-			lines[i] = userData
-		}
-	}
+	// lines := strings.Split(string(input), "\n")
+	// for i, line := range lines {
+	// 	if strings.TrimSpace(line) == "data" {
+	// 		lines[i] = userData
+	// 	}
+	// }
 
-	output := strings.Join(lines, "\n")
-	err = os.WriteFile(filePath, []byte(output), 0644)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write user-data.yaml: %w", err)
-	}
+	// output := strings.Join(lines, "\n")
+	// err = os.WriteFile(filePath, []byte(output), 0644)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to write user-data: %w", err)
+	// }
 
+	// CloudInit volume creation
 	cloudinitOpts := CloudInitCreateOpts{
 		Name: fmt.Sprintf("%s-cloudinit", serverName),
 	}
@@ -511,18 +517,13 @@ func createBootVolume(ctx context.Context, client *Client, serverName string, os
 	}
 	volumeIDs = append(volumeIDs, volumeIDcloudinit)
 
+	// Wait 5 seconds to allow the volume to be fully initialized
+	time.Sleep(5 * time.Second)
+
 	// Feed other file inside cloud-init volume
-	response, _, err := volumeClient.FeedFileIntoCloudInitStorage(ctx, volumeIDcloudinit)
+	_, _, err = volumeClient.FeedFileIntoCloudInitStorage(ctx, volumeIDcloudinit)
 	if err != nil {
 		return nil, err
-	}
-	switch response {
-	case "CONTINUE":
-		// Se ho bisogno di inviare un 3 o più files
-	case "OK":
-		// File received and loaded, all files received
-	default:
-		// Error on the Elemento side
 	}
 
 	return volumeIDs, nil

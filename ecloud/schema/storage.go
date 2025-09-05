@@ -5,7 +5,7 @@ package schema
 type StorageVolume struct {
 	VolumeID  string   `json:"volumeID"`
 	CreatorID string   `json:"creator_id"`
-	Size      int      `json:"size"` // Bytes
+	Size      float64  `json:"size"` // Size in GB (can be fractional)
 	Name      string   `json:"name"`
 	Format	  string   `json:"format"`
 	Private   bool     `json:"private"`

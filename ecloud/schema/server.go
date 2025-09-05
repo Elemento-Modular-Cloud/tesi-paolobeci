@@ -61,7 +61,8 @@ type CreateComputeRequest struct {
 	Misc          Misc                `json:"misc"`
 	Pci           []string            `json:"pci"`
 	Volumes       []map[string]string `json:"volumes"`
-	Netdevs       []string            `json:"netdevs"`
+	HasNetwork    bool                `json:"has_network"`
+	Networks      []string            `json:"networks"`
 }
 // kOps required ?
 // UserData   string             `json:"user_data,omitempty"`

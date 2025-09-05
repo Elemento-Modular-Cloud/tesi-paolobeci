@@ -109,17 +109,17 @@ func (c *VolumeClient) Create(ctx context.Context, opts VolumeCreateOpts) (strin
 
 // CloudInitCreateOpts specifies options for creating a new cloud-init.
 type CloudInitCreateOpts struct {
-	Name      string
+	Name string
 }
 
 func (c *VolumeClient) CreateCloudInit(ctx context.Context, opts CloudInitCreateOpts) (string, *Response, error) {
 	reqBody := schema.CreateStorageCloudInitRequest{
-		Name: opts.Name,
-		Private: false,
-		Bootable: true,
-		Clonable: false,
-		Alg: "no",
-		ExpectedFiles: 2,  // Minimum number of files accepted are 2
+		Name:          opts.Name,
+		Private:       false,
+		Bootable:      true,
+		Clonable:      false,
+		Alg:           "no",
+		ExpectedFiles: 2, // Minimum number of files accepted are 2
 	}
 	createdVolume, err := c.client.CreateStorageCloudInit(reqBody)
 	if err != nil {
@@ -135,7 +135,7 @@ func (c *VolumeClient) FeedFileIntoCloudInitStorage(ctx context.Context, volumeI
 	}
 	response, err := c.client.FeedFileIntoCloudInitStorage(reqBody)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to create cloud-init volume: %w", err)
+		return "", nil, fmt.Errorf("failed to feed file into cloud-init volume: %w", err)
 	}
 
 	return response, &Response{}, nil

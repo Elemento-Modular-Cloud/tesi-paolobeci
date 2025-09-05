@@ -182,7 +182,7 @@ func (c *Client) CreateStorageCloudInit(reqBody schema.CreateStorageCloudInitReq
 	encodedPayload := base64.StdEncoding.EncodeToString(jsonBytes)
 	fmt.Printf("Encoded payload (base64): %s\n", encodedPayload)
 
-	filepath := "cloud-config/user-data.yaml"
+	filepath := "cloud-config/user-data"
 	fmt.Printf("Opening file at path: %s\n", filepath)
 	file, err := os.Open(filepath)
 	if err != nil {
@@ -195,7 +195,7 @@ func (c *Client) CreateStorageCloudInit(reqBody schema.CreateStorageCloudInitReq
 	writer := multipart.NewWriter(&requestBody)
 
 	// Add file field
-	fileWriter, err := writer.CreateFormFile("file", filepath)
+	fileWriter, err := writer.CreateFormFile("file", "user-data")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create form file: %w", err)
 	}
@@ -219,7 +219,9 @@ func (c *Client) CreateStorageCloudInit(reqBody schema.CreateStorageCloudInitReq
 	// Set the correct Content-Type
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	fmt.Println("Sending HTTP request...")
+	fmt.Printf("Sending HTTP request to: %s\n", url)
+	fmt.Printf("Content-Type: %s\n", writer.FormDataContentType())
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
@@ -252,44 +254,68 @@ func (c *Client) FeedFileIntoCloudInitStorage(reqBody schema.FeedFileIntoCloudIn
 		return "", fmt.Errorf("failed to marshal reqBody: %w", err)
 	}
 	encodedPayload := base64.StdEncoding.EncodeToString(jsonBytes)
+	fmt.Printf("Encoded payload (base64): %s\n", encodedPayload)
 
 	// Fixed file path
-	filepath := "cloud-config/meta-data.yaml"
+	filepath := "cloud-config/meta-data"
+	fmt.Printf("Opening file at path: %s\n", filepath)
 	file, err := os.Open(filepath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
 
-	// Read file bytes
-	fileBytes, err := io.ReadAll(file)
+	// Create multipart form
+	var requestBody bytes.Buffer
+	writer := multipart.NewWriter(&requestBody)
+
+	// Add file field - using just the filename, not the full path
+	fileWriter, err := writer.CreateFormFile("file", "meta-data")
 	if err != nil {
-		return "", fmt.Errorf("failed to read file: %w", err)
+		return "", fmt.Errorf("failed to create form file: %w", err)
 	}
 
-	// Build URL with base64-encoded payload as last path segment
-	urlPath := "/api/v1.0/client/volume/cloudinit/metadata/" + encodedPayload
-	url := c.endpoint + ":27777" + urlPath
+	_, err = io.Copy(fileWriter, file)
+	if err != nil {
+		return "", fmt.Errorf("failed to copy file: %w", err)
+	}
 
-	// Create HTTP request with file bytes as body
-	req, err := http.NewRequest("POST", url, bytes.NewReader(fileBytes))
+	writer.Close()
+
+	// Build URL with base64-encoded payload as last path segment
+	url := c.endpoint + ":27777/api/v1.0/client/volume/cloudinit/metadata/" + encodedPayload
+
+	// Create request with multipart body
+	req, err := http.NewRequest("POST", url, &requestBody)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
+
+	// Set the correct Content-Type
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	fmt.Printf("Sending HTTP request to: %s\n", url)
+	fmt.Printf("Content-Type: %s\n", writer.FormDataContentType())
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		fmt.Println("Closing response body.")
+		resp.Body.Close()
+	}()
 
+	fmt.Printf("Received response with status code: %d\n", resp.StatusCode)
 	switch resp.StatusCode {
 	case 206:
 		return "CONTINUE", nil
 	case 200:
 		return "OK", nil
 	default:
-		return "ERROR", nil
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("API error response body: %s\n", string(body))
+		return "", fmt.Errorf("API error: %d - %s", resp.StatusCode, string(body))
 	}
 }
 

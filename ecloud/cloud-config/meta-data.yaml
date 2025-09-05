@@ -1,6 +1,0 @@
-instance-id: i-087e5b6d5f7c4a3b2
-hostname: my-instance-name
-local-hostname: ip-10-0-1-12.us-east-2.compute.internal
-public-ipv4: 203.0.113.5
-local-ipv4: 10.0.1.12
-availability-zone: eu-south

@@ -3,7 +3,6 @@ package ecloud
 import (
 	"context"
 	"net"
-	"os"
 	"testing"
 	"time"
 
@@ -21,8 +20,8 @@ func TestNetworkFunctionalities(t *testing.T) {
 
 	// Login
 	body := &schema.LoginRequest{
-		Username: os.Getenv("ECL_USERNAME"),
-		Password: os.Getenv("ECL_PASSWORD"),
+		Username: "pbeci@elemento.cloud",
+		Password: "kevjyN-6qazdi-mopgak",
 	}
 	_, err = client.Login(body)
 	if err != nil {
