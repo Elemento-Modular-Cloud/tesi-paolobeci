@@ -4,16 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"strings"
 	"time"
-
 	"os"
 
 	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema"
 )
 
-// VM representation inside Elemento
 type Server struct {
 	ID           string
 	Name         string
@@ -27,7 +24,6 @@ type Server struct {
 	Volumes      []*schema.StorageVolume
 }
 
-// ServerType represents a server type in the Elemento.
 type ServerType struct {
 	ID           int
 	Name         string

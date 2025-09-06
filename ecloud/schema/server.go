@@ -79,6 +79,7 @@ type CreateComputeResponse struct {
 // -------- COMPUTE STATUS --------
 type GetComputeResponse []Server
 
+// VM representation inside Elemento
 type Server struct {
 	UniqueID      string            `json:"uniqueID"`
 	Name          string            `json:"name"`

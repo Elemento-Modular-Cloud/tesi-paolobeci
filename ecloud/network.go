@@ -196,7 +196,7 @@ func (c *NetworkClient) Create(ctx context.Context, opts NetworkCreateOpts) (*Ne
 		return nil, nil, err
 	}
 	reqBody := schema.CreateNetworkRequest{
-		ServerUrl: "https://172.16.24.228:7776",
+		ServerUrl: "https://51.159.157.254:7776",
 		Name:      opts.Name,
 		Type:      "libvirt",
 		Mode:      "route",
