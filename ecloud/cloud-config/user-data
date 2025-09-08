@@ -21,7 +21,7 @@ hostname: myhost
 network:
   version: 2
   ethernets:
-    eth0:
+    ens3:
       dhcp4: true
 
 # 3. Define the bash script content

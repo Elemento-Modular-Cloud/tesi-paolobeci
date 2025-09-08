@@ -146,7 +146,7 @@ func TestAPIEndpoints(t *testing.T) {
 			Misc:          schema.Misc{OsFamily: "linux", OsFlavour: "ubuntu"},
 			Pci:           []string{},
 			Volumes:       []map[string]string{}, // {"vid": "volume_id"}
-			Networks:      []string{},
+			Networks:      []map[string]string{},
 		}
 		resp, err := client.CreateCompute(req)
 		if err != nil {

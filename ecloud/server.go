@@ -229,7 +229,7 @@ func (c *ServerClient) Create(ctx context.Context, opts ServerCreateOpts) (Serve
 		Pci:     []string{},
 		Volumes: []map[string]string{},
 		HasNetwork: true,
-		Networks: []string{},
+		Networks: []map[string]string{},
 	}
 
 	// Add server type configuration
@@ -293,9 +293,9 @@ func (c *ServerClient) Create(ctx context.Context, opts ServerCreateOpts) (Serve
 
 	// TODO: Add networks if provided
 	if len(opts.Networks) > 0 {
-		reqBody.Networks = make([]string, len(opts.Networks))
+		reqBody.Networks = make([]map[string]string, len(opts.Networks))
 		for i, network := range opts.Networks {
-			reqBody.Networks[i] = network.ID
+			reqBody.Networks[i] = map[string]string{"network_uid": network.ID}
 		}
 	}
 

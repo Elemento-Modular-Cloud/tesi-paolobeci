@@ -37,7 +37,7 @@ func TestCreate(t *testing.T) {
 		{
 			name: "basic_ubuntu_server",
 			opts: ServerCreateOpts{
-				Name: "test-server-ubuntu",
+				Name: "test-server-manuale",
 				ServerType: &ServerType{
 					Name:         "neon",
 					Cores:        2,
@@ -60,6 +60,11 @@ func TestCreate(t *testing.T) {
 				Labels: map[string]string{
 					"test":        "true",
 					"environment": "testing",
+				},
+				Networks: []*Network{
+					{
+						ID:   "dd61ce4b-d5ec-4024-b43a-55eff5d84714",
+					},
 				},
 			},
 			description: "Basic Ubuntu server with SSH key and user data",
