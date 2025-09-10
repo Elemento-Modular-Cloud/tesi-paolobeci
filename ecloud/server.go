@@ -484,24 +484,31 @@ func createBootVolume(ctx context.Context, client *Client, serverName string, os
 	// Create volume with cloud-init
 	// TODO: set custom ssh-key to user-data config file, now it is always Paolo's SSH key
 	// TODO: insert kOps scipt on variable userData into user-data cloudinit file
-	// filePath := "cloud-config/user-data"
-	// input, err := os.ReadFile(filePath)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to read user-data: %w", err)
-	// }
+	filePath := "cloud-config/user-data"
+	input, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read user-data: %w", err)
+	}
 
-	// lines := strings.Split(string(input), "\n")
-	// for i, line := range lines {
-	// 	if strings.TrimSpace(line) == "data" {
-	// 		lines[i] = userData
-	// 	}
-	// }
+	// Indent userData with 3 tabs (needed by yaml format)
+	userDataLines := strings.Split(userData, "\n")
+	for i, line := range userDataLines {
+		userDataLines[i] = "      " + line
+	}
+	indentedUserData := strings.Join(userDataLines, "\n")
 
-	// output := strings.Join(lines, "\n")
-	// err = os.WriteFile(filePath, []byte(output), 0644)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to write user-data: %w", err)
-	// }
+	lines := strings.Split(string(input), "\n")
+	for i, line := range lines {
+		if strings.TrimSpace(line) == "data" {
+			lines[i] = indentedUserData
+		}
+	}
+
+	output := strings.Join(lines, "\n")
+	err = os.WriteFile(filePath, []byte(output), 0644)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write user-data: %w", err)
+	}
 
 	// CloudInit volume creation
 	cloudinitOpts := CloudInitCreateOpts{

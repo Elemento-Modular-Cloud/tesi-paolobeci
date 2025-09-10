@@ -199,7 +199,7 @@ func (c *NetworkClient) Create(ctx context.Context, opts NetworkCreateOpts) (*Ne
 		ServerUrl: "https://51.159.157.254:7776",
 		Name:      opts.Name,
 		Type:      "libvirt",
-		Mode:      "route",
+		Mode:      "nat",
 		Private:   true,
 		IP: schema.NetworkIP{
 			Address: opts.IPRange.String(),

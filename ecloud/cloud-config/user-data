@@ -25,15 +25,14 @@ network:
       dhcp4: true
 
 # 3. Define the bash script content
-# write_files:
-#   - path: /home/root/kopsscript.sh
-#     permissions: "0755"
-#     owner: root:root
-#     content: |
-#       #!/bin/bash
+write_files:
+  - path: /home/root/kopsscript.sh
+    permissions: "0755"
+    owner: root:root
+    content: |
       
-#       data
+      data
 
 # # 4. Run the bash script using the 'runcmd' module
-# runcmd:
-#   - /home/myuser/kopsscript.sh
+runcmd:
+  - /home/root/kopsscript.sh
