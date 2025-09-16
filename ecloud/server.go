@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 	"os"
+	"net"
 
 	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema"
 )
@@ -22,6 +23,7 @@ type Server struct {
 	BackupWindow string
 	Labels       map[string]string
 	Volumes      []*schema.StorageVolume
+	PrivateNet   []ServerPrivateNet
 }
 
 type ServerType struct {
@@ -32,6 +34,14 @@ type ServerType struct {
 	Memory       float32
 	Disk         int
 	Architecture Architecture
+}
+
+// ServerPrivateNet defines the schema of a Server's private network information.
+type ServerPrivateNet struct {
+	Network    *Network
+	IP         net.IP
+	Aliases    []net.IP
+	MACAddress string
 }
 
 // Architecture specifies the architecture of the CPU.
@@ -103,22 +113,22 @@ type ServerClient struct {
 }
 
 // GetByID retrieves a server by its ID. If the server does not exist, nil is returned.
-func (c *ServerClient) GetByID(ctx context.Context, id string) (*schema.Server, error) {
-	// Call GetCompute and get the full status response
+func (c *ServerClient) GetByID(ctx context.Context, id string) (*Server, *Response, error) {
+	// Call GetCompute and get all server list
 	statusResp, err := c.client.GetCompute()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Search for the server with the matching ID
 	for _, server := range *statusResp {
 		if server.UniqueID == id {
-			return &server, nil
+			return ServerFromSchema(server), &Response{}, nil
 		}
 	}
 
 	// Server not found
-	return nil, nil
+	return nil, nil, errors.New("server not found")
 }
 
 // GetByName retrieves a server by its name. If the server does not exist, nil is returned.
@@ -481,40 +491,11 @@ func createBootVolume(ctx context.Context, client *Client, serverName string, os
 	}
 	volumeIDs = append(volumeIDs, volumeIDboot)
 
-	// Create volume with cloud-init
-	// TODO: set custom ssh-key to user-data config file, now it is always Paolo's SSH key
-	// TODO: insert kOps scipt on variable userData into user-data cloudinit file
-	filePath := "cloud-config/user-data"
-	input, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read user-data: %w", err)
-	}
-
-	// Indent userData with 3 tabs (needed by yaml format)
-	userDataLines := strings.Split(userData, "\n")
-	for i, line := range userDataLines {
-		userDataLines[i] = "      " + line
-	}
-	indentedUserData := strings.Join(userDataLines, "\n")
-
-	lines := strings.Split(string(input), "\n")
-	for i, line := range lines {
-		if strings.TrimSpace(line) == "data" {
-			lines[i] = indentedUserData
-		}
-	}
-
-	output := strings.Join(lines, "\n")
-	err = os.WriteFile(filePath, []byte(output), 0644)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write user-data: %w", err)
-	}
-
 	// CloudInit volume creation
 	cloudinitOpts := CloudInitCreateOpts{
-		Name: fmt.Sprintf("%s-cloudinit", serverName),
+		Name: serverName,
 	}
-	volumeIDcloudinit, _, err := volumeClient.CreateCloudInit(ctx, cloudinitOpts)
+	volumeIDcloudinit, _, err := volumeClient.CreateCloudInit(ctx, cloudinitOpts, userData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cloud-init volume: %w", err)
 	}

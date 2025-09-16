@@ -2,16 +2,20 @@ package ecloud
 
 import (
 	"bytes"
+	_ "embed"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
-	"os"
+	"strings"
 
 	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema"
 )
+
+//go:embed version.txt
+var version string
 
 // ------------------------------ API CALLS FUNCTIONS -------------------------
 
@@ -171,7 +175,7 @@ func (c *Client) CreateStorageImage(reqBody schema.CreateStorageImageRequest) (*
 }
 
 // Create new cloudinit volume
-func (c *Client) CreateStorageCloudInit(reqBody schema.CreateStorageCloudInitRequest) (*schema.CreateStorageCloudInitResponse, error) {
+func (c *Client) CreateStorageCloudInit(reqBody schema.CreateStorageCloudInitRequest, userData string) (*schema.CreateStorageCloudInitResponse, error) {
 	var res schema.CreateStorageCloudInitResponse
 
 	fmt.Printf("Marshalling request body: %+v\n", reqBody)
@@ -182,30 +186,39 @@ func (c *Client) CreateStorageCloudInit(reqBody schema.CreateStorageCloudInitReq
 	encodedPayload := base64.StdEncoding.EncodeToString(jsonBytes)
 	fmt.Printf("Encoded payload (base64): %s\n", encodedPayload)
 
-	filepath := "cloud-config/user-data"
-	fmt.Printf("Opening file at path: %s\n", filepath)
-	file, err := os.Open(filepath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
+	// -------------- CLOUD-INIT USER-DATA MODIFICATION --------------
+	// Use the embedded user-data template from cloudconfig package
+	modifiedContent := CloudinitTemplate
+	if reqBody.Name != "" {
+		hostname := strings.TrimSuffix(reqBody.Name, "-cloudinit")
+		modifiedContent = strings.Replace(modifiedContent, "hostname: myhost", "hostname: "+hostname, 1)
+		fmt.Printf("Replaced hostname with: %s\n", hostname)
 	}
-	defer file.Close()
+
+	// Inject userData into the template by replacing the "data" placeholder
+	if userData != "" {
+		modifiedContent = injectUserDataIntoTemplate(modifiedContent, userData)
+		fmt.Printf("Injected userData into template\n")
+	}
 
 	// Create multipart form
 	var requestBody bytes.Buffer
 	writer := multipart.NewWriter(&requestBody)
 
-	// Add file field
+	// Add file field - using the modified content
 	fileWriter, err := writer.CreateFormFile("file", "user-data")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create form file: %w", err)
 	}
 
-	_, err = io.Copy(fileWriter, file)
+	// Write the modified content instead of copying from file
+	_, err = fileWriter.Write([]byte(modifiedContent))
 	if err != nil {
-		return nil, fmt.Errorf("failed to copy file: %w", err)
+		return nil, fmt.Errorf("failed to write modified content: %w", err)
 	}
 
 	writer.Close()
+	// ------------- END cloud-init user-data modification -------------
 
 	// Build URL for the request
 	url := c.endpoint + ":27777/api/v1.0/client/volume/cloudinit/metadata/" + encodedPayload
@@ -256,14 +269,8 @@ func (c *Client) FeedFileIntoCloudInitStorage(reqBody schema.FeedFileIntoCloudIn
 	encodedPayload := base64.StdEncoding.EncodeToString(jsonBytes)
 	fmt.Printf("Encoded payload (base64): %s\n", encodedPayload)
 
-	// Fixed file path
-	filepath := "cloud-config/meta-data"
-	fmt.Printf("Opening file at path: %s\n", filepath)
-	file, err := os.Open(filepath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
+	// Use the embedded meta-data template from cloudconfig package
+	metaDataContent := MetaDataTemplate
 
 	// Create multipart form
 	var requestBody bytes.Buffer
@@ -275,9 +282,10 @@ func (c *Client) FeedFileIntoCloudInitStorage(reqBody schema.FeedFileIntoCloudIn
 		return "", fmt.Errorf("failed to create form file: %w", err)
 	}
 
-	_, err = io.Copy(fileWriter, file)
+	// Write the meta-data content from string
+	_, err = fileWriter.Write([]byte(metaDataContent))
 	if err != nil {
-		return "", fmt.Errorf("failed to copy file: %w", err)
+		return "", fmt.Errorf("failed to write meta-data content: %w", err)
 	}
 
 	writer.Close()
@@ -483,6 +491,87 @@ func (c *Client) UnmarshalResponse(response *http.Response, resType interface{})
 	d := json.NewDecoder(bytes.NewReader(body))
 	d.UseNumber()
 	return d.Decode(resType)
+}
+
+// ------------------------------ HELPER FUNCTIONS -----------------------------
+
+// injectUserDataIntoTemplate takes a template and userData, indents the userData properly,
+// and replaces the "data" placeholder in the template with the indented userData
+func injectUserDataIntoTemplate(template, userData string) string {
+	// Replace NODEUP_URL_AMD64 references with the actual Elemento kOps release URL - ARM not supported yet
+	elementoURL := fmt.Sprintf("https://github.com/Elemento-Modular-Cloud/kops/releases/download/%s/nodeup-linux-amd64", strings.TrimSpace(version))
+	userData = strings.ReplaceAll(userData, "NODEUP_URL_AMD64", elementoURL)
+
+	// Clean up bash script validation logic - remove hash validation blocks (since the release is not officially signed)
+	userData = removeHashValidationBlocks(userData)
+
+	// Indent userData with 6 spaces (needed by yaml format)
+	userDataLines := strings.Split(userData, "\n")
+	for i, line := range userDataLines {
+		if strings.TrimSpace(line) != "" { // Don't indent empty lines
+			userDataLines[i] = "      " + line
+		}
+	}
+	indentedUserData := strings.Join(userDataLines, "\n")
+
+	// Replace the "data" placeholder in the template with the actual userData
+	return strings.Replace(template, "      data", indentedUserData, 1)
+}
+
+// removeHashValidationBlocks removes hash validation logic from bash scripts
+func removeHashValidationBlocks(script string) string {
+	// Remove the first hash validation block
+	hashBlock1 := `if [[ -f "${file}" ]]; then
+		if ! validate-hash "${file}" "${hash}"; then
+		rm -f "${file}"
+		else
+		return 0
+		fi
+	fi
+	`
+	script = strings.ReplaceAll(script, hashBlock1, "")
+
+	// Remove the second hash validation block
+	hashBlock2 := `if ! validate-hash "${file}" "${hash}"; then
+          echo "== Failed to validate hash for ${url} =="
+          rm -f "${file}"
+        else
+          echo "== Downloaded ${url} with hash ${hash} =="
+          return 0
+        fi`
+	script = strings.ReplaceAll(script, hashBlock2, "")
+
+	// Remove the validate-hash function definition
+	validateHashFunc := `validate-hash() {
+			local -r file="$1"
+			local -r expected="$2"
+			local actual
+
+			actual=$(sha256sum "${file}" | awk '{ print $1 }') || true
+			if [[ "${actual}" != "${expected}" ]]; then
+				echo "== File ${file} is corrupted; hash ${actual} doesn't match expected ${expected} =="
+				return 1
+			fi
+		}`
+	script = strings.ReplaceAll(script, validateHashFunc, "")
+
+	// Replace the download failure block with success logic
+	oldDownloadBlock := `if ! (${cmd} "${url}"); then
+          echo "== Failed to download ${url} using ${cmd} =="
+          continue
+        fi`
+
+	newDownloadBlock := `if ! (${cmd} "${url}"); then
+          echo "== Failed to download ${url} using ${cmd} =="
+          continue
+        else  
+          echo "== Successfully downloaded ${url} using ${cmd} =="
+          return 0
+        fi`
+
+	script = strings.ReplaceAll(script, oldDownloadBlock, newDownloadBlock)
+
+	return script
 }
 
 // ------------------------------ ERROR HANDLING -----------------------------

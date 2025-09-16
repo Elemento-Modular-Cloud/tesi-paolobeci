@@ -102,7 +102,8 @@ func TestCreateCloudInit(t *testing.T) {
 
 			// Call CreateCloudInit
 			t.Log("Calling CreateCloudInit...")
-			volumeID, resp, err := volumeClient.CreateCloudInit(ctx, tc.opts)
+			userData := `#cloud-config...`
+			volumeID, resp, err := volumeClient.CreateCloudInit(ctx, tc.opts, userData)
 
 			if err != nil {
 				t.Logf("❌ CreateCloudInit returned error: %v", err)
@@ -167,8 +168,10 @@ func TestFeedFileIntoCloudInitStorage(t *testing.T) {
 		Name: "test-cloudinit-complete",
 	}
 
+	userData := `#cloud-config...`
+
 	t.Logf("Creating cloud-init volume with opts: %+v", cloudInitOpts)
-	volumeID, _, err := volumeClient.CreateCloudInit(ctx, cloudInitOpts)
+	volumeID, _, err := volumeClient.CreateCloudInit(ctx, cloudInitOpts, userData)
 	if err != nil {
 		t.Logf("❌ Failed to create cloud-init volume: %v", err)
 		return

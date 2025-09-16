@@ -112,16 +112,16 @@ type CloudInitCreateOpts struct {
 	Name string
 }
 
-func (c *VolumeClient) CreateCloudInit(ctx context.Context, opts CloudInitCreateOpts) (string, *Response, error) {
+func (c *VolumeClient) CreateCloudInit(ctx context.Context, opts CloudInitCreateOpts, userData string) (string, *Response, error) {
 	reqBody := schema.CreateStorageCloudInitRequest{
-		Name:          opts.Name,
+		Name:          fmt.Sprintf("%s-cloudinit", opts.Name),
 		Private:       false,
 		Bootable:      true,
 		Clonable:      false,
 		Alg:           "no",
 		ExpectedFiles: 2, // Minimum number of files accepted are 2
 	}
-	createdVolume, err := c.client.CreateStorageCloudInit(reqBody)
+	createdVolume, err := c.client.CreateStorageCloudInit(reqBody, userData)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create cloud-init volume: %w", err)
 	}

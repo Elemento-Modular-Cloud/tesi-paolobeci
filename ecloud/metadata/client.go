@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const Endpoint = "http://169.254.169.254/meme/v1/metadata"
+const Endpoint = "http://127.0.0.1/ecloud/v1/metadata"
 
 // Client is a client for the Hetzner Cloud Server Metadata Endpoints.
 type Client struct {

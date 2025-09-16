@@ -1,4 +1,7 @@
-#cloud-config
+package ecloud
+
+// CloudinitTemplate contains the cloud-init user-data configuration
+const CloudinitTemplate = `#cloud-config
 
 # 1. Create a user, set password, and add to the 'sudo' group
 users:
@@ -23,6 +26,11 @@ network:
   ethernets:
     ens3:
       dhcp4: true
+      nameservers:
+        addresses:
+          - 192.168.100.10  # IP del server DNS
+        search:
+          - test.k8s
 
 # 3. Define the bash script content
 write_files:
@@ -32,7 +40,24 @@ write_files:
     content: |
       
       data
+      
+      
 
 # # 4. Run the bash script using the 'runcmd' module
 runcmd:
-  - /home/root/kopsscript.sh
+  - mkdir -p /mnt/disks/test.k8s--main--
+  - mkdir -p /mnt/disks/test.k8s--events--
+  - mkfs.ext4 /dev/vdb
+  - mount /dev/vdb /mnt/disks/test.k8s--main--
+  - mount /dev/vdb /mnt/disks/test.k8s--events--
+  - mkdir -p /mnt/disks/test.k8s--main--/mnt
+  - mkdir -p /mnt/disks/test.k8s--events--/mnt
+  - sudo chown -R root:root /mnt/disks/test.k8s--main--
+  - sudo chmod 755 /mnt/disks/test.k8s--main--
+  - sudo chown -R root:root /mnt/disks/test.k8s--events--
+  - sudo chmod 755 /mnt/disks/test.k8s--events--
+  - blkid /dev/vdb1
+  - [ bash, /home/root/kopsscript.sh ]`
+
+// MetaDataTemplate contains the cloud-init meta-data configuration
+const MetaDataTemplate = `instance-id: id-vm-kops`
