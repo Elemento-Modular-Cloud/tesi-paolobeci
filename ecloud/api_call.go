@@ -9,6 +9,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema"
@@ -500,7 +501,10 @@ func (c *Client) UnmarshalResponse(response *http.Response, resType interface{})
 func injectUserDataIntoTemplate(template, userData string) string {
 	// Replace NODEUP_URL_AMD64 references with the actual Elemento kOps release URL - ARM not supported yet
 	elementoURL := fmt.Sprintf("https://github.com/Elemento-Modular-Cloud/kops/releases/download/%s/nodeup-linux-amd64", strings.TrimSpace(version))
-	userData = strings.ReplaceAll(userData, "NODEUP_URL_AMD64", elementoURL)
+
+	// Use regex to replace the value part of NODEUP_URL_AMD64=<existing_value> with the new URL
+	nodeupPattern := regexp.MustCompile(`NODEUP_URL_AMD64=([^\s]+)`)
+	userData = nodeupPattern.ReplaceAllString(userData, fmt.Sprintf("NODEUP_URL_AMD64=%s", elementoURL))
 
 	// Clean up bash script validation logic - remove hash validation blocks (since the release is not officially signed)
 	userData = removeHashValidationBlocks(userData)
@@ -521,14 +525,13 @@ func injectUserDataIntoTemplate(template, userData string) string {
 // removeHashValidationBlocks removes hash validation logic from bash scripts
 func removeHashValidationBlocks(script string) string {
 	// Remove the first hash validation block
-	hashBlock1 := `if [[ -f "${file}" ]]; then
-		if ! validate-hash "${file}" "${hash}"; then
-		rm -f "${file}"
-		else
-		return 0
-		fi
-	fi
-	`
+	hashBlock1 := `  if [[ -f "${file}" ]]; then
+    if ! validate-hash "${file}" "${hash}"; then
+      rm -f "${file}"
+    else
+      return 0
+    fi
+  fi`
 	script = strings.ReplaceAll(script, hashBlock1, "")
 
 	// Remove the second hash validation block
@@ -543,16 +546,16 @@ func removeHashValidationBlocks(script string) string {
 
 	// Remove the validate-hash function definition
 	validateHashFunc := `validate-hash() {
-			local -r file="$1"
-			local -r expected="$2"
-			local actual
+  local -r file="$1"
+  local -r expected="$2"
+  local actual
 
-			actual=$(sha256sum "${file}" | awk '{ print $1 }') || true
-			if [[ "${actual}" != "${expected}" ]]; then
-				echo "== File ${file} is corrupted; hash ${actual} doesn't match expected ${expected} =="
-				return 1
-			fi
-		}`
+  actual=$(sha256sum "${file}" | awk '{ print $1 }') || true
+  if [[ "${actual}" != "${expected}" ]]; then
+    echo "== File ${file} is corrupted; hash ${actual} doesn't match expected ${expected} =="
+    return 1
+  fi
+}`
 	script = strings.ReplaceAll(script, validateHashFunc, "")
 
 	// Replace the download failure block with success logic
