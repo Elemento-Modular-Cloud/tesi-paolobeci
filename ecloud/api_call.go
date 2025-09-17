@@ -9,10 +9,12 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"regexp"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/Elemento-Modular-Cloud/tesi-paolobeci/ecloud/schema"
+	"golang.org/x/crypto/ssh"
 )
 
 //go:embed version.txt
@@ -196,12 +198,6 @@ func (c *Client) CreateStorageCloudInit(reqBody schema.CreateStorageCloudInitReq
 		fmt.Printf("Replaced hostname with: %s\n", hostname)
 	}
 
-	// Inject userData into the template by replacing the "data" placeholder
-	if userData != "" {
-		modifiedContent = injectUserDataIntoTemplate(modifiedContent, userData)
-		fmt.Printf("Injected userData into template\n")
-	}
-
 	// Create multipart form
 	var requestBody bytes.Buffer
 	writer := multipart.NewWriter(&requestBody)
@@ -358,8 +354,6 @@ func (c *Client) DeleteStorage(reqBody schema.DeleteStorageRequest) (*schema.Del
 	return &res, nil
 }
 
-// ------------------------------ MOCKED ENDPOINTS -----------------------------
-
 // Get a Network by Id
 func (c *Client) GetNetworkByID(reqBody schema.GetNetworkByIDRequest) (*schema.GetNetworkByIDResponse, error) {
 	var res schema.GetNetworkByIDResponse
@@ -402,6 +396,89 @@ func (c *Client) CreateNetwork(network schema.CreateNetworkRequest) (*schema.Cre
 		return nil, err
 	}
 	return &res, nil
+}
+
+// ------------------------------ DEVELOPMENT ENDPOINTS -----------------------------
+
+type VM struct {
+	Role string `json:"role"`
+	UUID string `json:"uuid"`
+}
+
+type ExecuteClusterStartupResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
+func (c *Client) ExecuteClusterStartup() (*ExecuteClusterStartupResponse, error) {
+	// Get compute instances
+	computeResponse, err := c.GetCompute()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get compute instances: %w", err)
+	}
+
+	// Extract VMs with roles and UUIDs
+	var vms []VM
+	for _, server := range *computeResponse {
+		var role string
+		vmName := strings.ToLower(server.ReqJSON.VMName)
+
+		if strings.Contains(vmName, "control-plane") {
+			role = "control-plane"
+		} else if strings.Contains(vmName, "node") {
+			role = "nodes"
+		} else {
+			// Skip VMs that don't match our criteria
+			continue
+		}
+
+		vm := VM{
+			Role: role,
+			UUID: server.UniqueID,
+		}
+		vms = append(vms, vm)
+	}
+
+	if len(vms) == 0 {
+		return &ExecuteClusterStartupResponse{
+			Success: false,
+			Message: "No VMs found with control-plane or nodes in their names",
+		}, nil
+	}
+
+	// Convert VMs list to JSON string for the Ansible command
+	vmsJSON, err := json.Marshal(vms)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal VMs list: %w", err)
+	}
+
+	// Execute SSH command
+	ansibleCommand := fmt.Sprintf("ansible-playbook inventory_creation.yaml -e 'vms_list=%s'", string(vmsJSON))
+
+	err = c.executeSSHCommand("51.159.157.254", "root", ansibleCommand)
+	if err != nil {
+		return &ExecuteClusterStartupResponse{
+			Success: false,
+			Message: fmt.Sprintf("Failed to execute SSH command 1: %v", err),
+		}, nil
+	} else {
+		fmt.Println("Successfully executed inventory creation command via SSH.")
+	}
+
+	err = c.executeSSHCommand("51.159.157.254", "root", "ansible-playbook -i inventory.ini k8s_up.yaml")
+	if err != nil {
+		return &ExecuteClusterStartupResponse{
+			Success: false,
+			Message: fmt.Sprintf("Failed to execute SSH command 2: %v", err),
+		}, nil
+	} else {
+		fmt.Println("Successfully executed cluster startup command via SSH.")
+	}
+
+	return &ExecuteClusterStartupResponse{
+		Success: true,
+		Message: fmt.Sprintf("Successfully executed cluster startup for %d VMs", len(vms)),
+	}, nil
 }
 
 // SSH KEYS...
@@ -494,91 +571,136 @@ func (c *Client) UnmarshalResponse(response *http.Response, resType interface{})
 	return d.Decode(resType)
 }
 
-// ------------------------------ HELPER FUNCTIONS -----------------------------
+// executeSSHCommand executes a command on a remote server via SSH
+func (c *Client) executeSSHCommand(host, user, command string) error {
+	fmt.Printf("Starting SSH connection to %s@%s\n", user, host)
+	
+	// Try to load SSH key for authentication
+	var authMethods []ssh.AuthMethod
 
-// injectUserDataIntoTemplate takes a template and userData, indents the userData properly,
-// and replaces the "data" placeholder in the template with the indented userData
-func injectUserDataIntoTemplate(template, userData string) string {
-	// Replace NODEUP_URL_AMD64 references with the actual Elemento kOps release URL - ARM not supported yet
-	elementoURL := fmt.Sprintf("https://github.com/Elemento-Modular-Cloud/kops/releases/download/%s/nodeup-linux-amd64", strings.TrimSpace(version))
+	// Try to load private key from standard locations
+	keyPaths := []string{
+		os.ExpandEnv("$HOME/.ssh/id_rsa"),
+		os.ExpandEnv("$HOME/.ssh/id_ed25519"),
+	}
 
-	// Use regex to replace the value part of NODEUP_URL_AMD64=<existing_value> with the new URL
-	nodeupPattern := regexp.MustCompile(`NODEUP_URL_AMD64=([^\s]+)`)
-	userData = nodeupPattern.ReplaceAllString(userData, fmt.Sprintf("NODEUP_URL_AMD64=%s", elementoURL))
-
-	// Clean up bash script validation logic - remove hash validation blocks (since the release is not officially signed)
-	userData = removeHashValidationBlocks(userData)
-
-	// Indent userData with 6 spaces (needed by yaml format)
-	userDataLines := strings.Split(userData, "\n")
-	for i, line := range userDataLines {
-		if strings.TrimSpace(line) != "" { // Don't indent empty lines
-			userDataLines[i] = "      " + line
+	for _, keyPath := range keyPaths {
+		fmt.Printf("Attempting to load SSH key from: %s\n", keyPath)
+		if auth, err := c.loadSSHKey(keyPath); err == nil {
+			authMethods = append(authMethods, auth)
+			fmt.Printf("Successfully loaded SSH key from: %s\n", keyPath)
+			break
+		} else {
+			fmt.Printf("Failed to load SSH key from %s: %v\n", keyPath, err)
 		}
 	}
-	indentedUserData := strings.Join(userDataLines, "\n")
 
-	// Replace the "data" placeholder in the template with the actual userData
-	return strings.Replace(template, "      data", indentedUserData, 1)
+	// If no key could be loaded, return error
+	if len(authMethods) == 0 {
+		return fmt.Errorf("no SSH authentication methods available - could not load SSH keys from standard locations")
+	}
+
+	// Create SSH client configuration with timeout
+	config := &ssh.ClientConfig{
+		User:            user,
+		Auth:            authMethods,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // WARNING: This is insecure for production
+		Timeout:         30 * time.Second, // Add timeout
+	}
+
+	fmt.Printf("Attempting to connect to SSH server %s:22\n", host)
+	
+	// Add a timeout context for the connection attempt
+	connResult := make(chan struct {
+		client *ssh.Client
+		err    error
+	}, 1)
+	
+	go func() {
+		client, err := ssh.Dial("tcp", host+":22", config)
+		connResult <- struct {
+			client *ssh.Client
+			err    error
+		}{client: client, err: err}
+	}()
+	
+	// Wait for connection or timeout
+	var client *ssh.Client
+	select {
+	case result := <-connResult:
+		client = result.client
+		if result.err != nil {
+			return fmt.Errorf("failed to connect to SSH server %s:22: %w", host, result.err)
+		}
+	case <-time.After(45 * time.Second): // 45 second timeout for connection
+		return fmt.Errorf("SSH connection to %s:22 timed out after 45 seconds", host)
+	}
+	defer func() {
+		fmt.Printf("Closing SSH connection\n")
+		client.Close()
+	}()
+
+	fmt.Printf("SSH connection established successfully\n")
+
+	// Create a session
+	fmt.Printf("Creating SSH session\n")
+	session, err := client.NewSession()
+	if err != nil {
+		return fmt.Errorf("failed to create SSH session: %w", err)
+	}
+	defer func() {
+		fmt.Printf("Closing SSH session\n")
+		session.Close()
+	}()
+
+	fmt.Printf("SSH session created successfully\n")
+
+	// Execute the command
+	fmt.Printf("Executing SSH command: %s\n", command)
+	
+	// Use a channel to handle timeout for command execution
+	type result struct {
+		output []byte
+		err    error
+	}
+	
+	resultChan := make(chan result, 1)
+	
+	go func() {
+		output, err := session.CombinedOutput(command)
+		resultChan <- result{output: output, err: err}
+	}()
+	
+	// Wait for command completion or timeout
+	select {
+	case res := <-resultChan:
+		if res.err != nil {
+			return fmt.Errorf("command execution failed: %w, output: %s", res.err, string(res.output))
+		}
+		fmt.Printf("SSH command completed successfully\n")
+		fmt.Printf("SSH command output: %s\n", string(res.output))
+		return nil
+	case <-time.After(300 * time.Second): // 5 minute timeout
+		return fmt.Errorf("SSH command execution timed out after 300 seconds")
+	}
 }
 
-// removeHashValidationBlocks removes hash validation logic from bash scripts
-func removeHashValidationBlocks(script string) string {
-	// Remove the first hash validation block
-	hashBlock1 := `  if [[ -f "${file}" ]]; then
-    if ! validate-hash "${file}" "${hash}"; then
-      rm -f "${file}"
-    else
-      return 0
-    fi
-  fi`
-	script = strings.ReplaceAll(script, hashBlock1, "")
+func (c *Client) loadSSHKey(keyPath string) (ssh.AuthMethod, error) {
+	key, err := os.ReadFile(keyPath)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read private key: %w", err)
+	}
 
-	// Remove the second hash validation block
-	hashBlock2 := `if ! validate-hash "${file}" "${hash}"; then
-          echo "== Failed to validate hash for ${url} =="
-          rm -f "${file}"
-        else
-          echo "== Downloaded ${url} with hash ${hash} =="
-          return 0
-        fi`
-	script = strings.ReplaceAll(script, hashBlock2, "")
+	// Create the Signer for this private key
+	signer, err := ssh.ParsePrivateKey(key)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse private key: %w", err)
+	}
 
-	// Remove the validate-hash function definition
-	validateHashFunc := `validate-hash() {
-  local -r file="$1"
-  local -r expected="$2"
-  local actual
-
-  actual=$(sha256sum "${file}" | awk '{ print $1 }') || true
-  if [[ "${actual}" != "${expected}" ]]; then
-    echo "== File ${file} is corrupted; hash ${actual} doesn't match expected ${expected} =="
-    return 1
-  fi
-}`
-	script = strings.ReplaceAll(script, validateHashFunc, "")
-
-	// Replace the download failure block with success logic
-	oldDownloadBlock := `if ! (${cmd} "${url}"); then
-          echo "== Failed to download ${url} using ${cmd} =="
-          continue
-        fi`
-
-	newDownloadBlock := `if ! (${cmd} "${url}"); then
-          echo "== Failed to download ${url} using ${cmd} =="
-          continue
-        else  
-          echo "== Successfully downloaded ${url} using ${cmd} =="
-          return 0
-        fi`
-
-	script = strings.ReplaceAll(script, oldDownloadBlock, newDownloadBlock)
-
-	return script
+	return ssh.PublicKeys(signer), nil
 }
 
 // ------------------------------ ERROR HANDLING -----------------------------
-
 type APIError struct {
 	StatusCode int    `json:"status_code"`
 	Message    string `json:"message"`

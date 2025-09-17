@@ -1,0 +1,61 @@
+---
+- name: Discover VMs IPs and generate Ansible inventory dynamically
+  hosts: localhost
+  gather_facts: false
+  vars:
+    ssh_user: root
+    ssh_key: /root/.ssh/id_ed25519
+    inventory_file: ./inventory.ini
+
+  tasks:
+
+    - name: Ensure vms_list is provided
+      assert:
+        that: vms_list is defined
+        msg: "You must pass a vms_list variable, e.g. -e vms_list='[...]'"
+
+    - name: Get VM IPs
+      ansible.builtin.shell: >
+        sudo virsh domifaddr {{ item.uuid }}
+        | awk '/ipv4/ {print $4}' | cut -d'/' -f1
+      register: vm_ip_results
+      loop: "{{ vms_list }}"
+      loop_control:
+        index_var: loop_index
+
+    - name: Set up the final inventory structure
+      set_fact:
+        inventory:
+          controllers: []
+          workers: []
+
+    - name: Add hosts to inventory
+      set_fact:
+        inventory: >-
+          {{
+            inventory | combine({
+              'controllers': (inventory.controllers + [{'name': 'controller' ~ (inventory.controllers | length + 1), 'ip': vm_ip_results.results[loop_index].stdout}]) if item.role == 'control-plane' else inventory.controllers,
+              'workers': (inventory.workers + [{'name': 'worker' ~ (inventory.workers | length + 1), 'ip': vm_ip_results.results[loop_index].stdout}]) if item.role == 'nodes' else inventory.workers
+            })
+          }}
+      loop: "{{ vms_list }}"
+      loop_control:
+        index_var: loop_index
+
+    - name: Write inventory.ini file
+      ansible.builtin.copy:
+        dest: "{{ inventory_file }}"
+        content: |
+          [controllers]
+          {% for host in inventory.controllers %}
+          {{ host.name }} ansible_host={{ host.ip }} ansible_user={{ ssh_user }} ansible_ssh_private_key_file={{ ssh_key }}
+          {% endfor %}
+
+          [workers]
+          {% for host in inventory.workers %}
+          {{ host.name }} ansible_host={{ host.ip }} ansible_user={{ ssh_user }} ansible_ssh_private_key_file={{ ssh_key }}
+          {% endfor %}
+
+          [instance:children]
+          controllers
+          workers
