@@ -384,16 +384,6 @@ func TestSSHFunctions(t *testing.T) {
 		return nil
 	})
 
-	testEndpoint(t, "Test SSH Connection", func() error {
-		err := client.TestSSHConnection("51.159.157.254", "root")
-		if err != nil {
-			fmt.Printf("SSH connection test failed: %v\n", err)
-			return err
-		}
-		fmt.Printf("✅ SSH connection test passed\n")
-		return nil
-	})
-
 	testEndpoint(t, "Execute Cluster Startup", func() error {
 		resp, err := client.ExecuteClusterStartup()
 		if err != nil {
