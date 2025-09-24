@@ -14,11 +14,13 @@
         that: vms_list is defined
         msg: "You must pass a vms_list variable, e.g. -e vms_list='[...]'"
 
-    - name: Get VM IPs
+    - name: Get VM IPs (with retries)
       ansible.builtin.shell: >
-        sudo virsh domifaddr {{ item.uuid }}
-        | awk '/ipv4/ {print $4}' | cut -d'/' -f1
+        virsh domifaddr {{ item.uuid }} | awk '/ipv4/ {print $4}' | cut -d'/' -f1
       register: vm_ip_results
+      retries: 5
+      delay: 5
+      until: vm_ip_results.stdout != ""
       loop: "{{ vms_list }}"
       loop_control:
         index_var: loop_index

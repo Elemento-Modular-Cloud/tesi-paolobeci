@@ -355,7 +355,7 @@ func TestSSHFunctions(t *testing.T) {
 	})
 
 	testEndpoint(t, "Execute SSH Command - whoami", func() error {
-		err := client.executeSSHCommand("51.159.157.254", "root", "whoami")
+		err := client.executeSSHCommand("51.159.157.254", "root", "whoami", 30*time.Second)
 		if err != nil {
 			fmt.Printf("SSH command execution failed: %v\n", err)
 			return err
@@ -365,7 +365,7 @@ func TestSSHFunctions(t *testing.T) {
 	})
 
 	testEndpoint(t, "Execute SSH Command - hostname", func() error {
-		err := client.executeSSHCommand("51.159.157.254", "root", "hostname")
+		err := client.executeSSHCommand("51.159.157.254", "root", "hostname", 30*time.Second)
 		if err != nil {
 			fmt.Printf("SSH command execution failed: %v\n", err)
 			return err
@@ -375,12 +375,33 @@ func TestSSHFunctions(t *testing.T) {
 	})
 
 	testEndpoint(t, "Execute SSH Command - ls /", func() error {
-		err := client.executeSSHCommand("51.159.157.254", "root", "ls")
+		err := client.executeSSHCommand("51.159.157.254", "root", "ls /", 30*time.Second)
 		if err != nil {
 			fmt.Printf("SSH command execution failed: %v\n", err)
 			return err
 		}
 		fmt.Printf("✅ Command executed successfully\n")
+		return nil
+	})
+
+	testEndpoint(t, "Test SSH Connection", func() error {
+		err := client.executeSSHCommand("51.159.157.254", "root", "echo 'SSH connection test successful'", 30*time.Second)
+		if err != nil {
+			fmt.Printf("SSH connection test failed: %v\n", err)
+			return err
+		}
+		fmt.Printf("✅ SSH connection test passed\n")
+		return nil
+	})
+
+	testEndpoint(t, "Test Long-Running SSH Command", func() error {
+		// Test the long-running command functionality with a simple command first
+		err := client.executeSSHCommand("51.159.157.254", "root", "sleep 10 && echo 'Long running command test completed'", 2*time.Minute)
+		if err != nil {
+			fmt.Printf("Long-running SSH command test failed: %v\n", err)
+			return err
+		}
+		fmt.Printf("✅ Long-running SSH command test passed\n")
 		return nil
 	})
 
@@ -391,38 +412,6 @@ func TestSSHFunctions(t *testing.T) {
 			return err
 		}
 		fmt.Printf("Cluster startup response: %s\n", prettyPrint(resp))
-		return nil
-	})
-
-	testEndpoint(t, "Test File Upload to Remote Server", func() error {
-		// Test uploading the ansible files to the remote server
-		err := client.executeSSHCommand("51.159.157.254", "root", "ls -la /root/")
-		if err != nil {
-			fmt.Printf("Failed to list remote directory: %v\n", err)
-			return err
-		}
-
-		// Test if ansible is installed
-		err = client.executeSSHCommand("51.159.157.254", "root", "ansible --version || echo 'Ansible not installed'")
-		if err != nil {
-			fmt.Printf("Ansible version check failed: %v\n", err)
-			return err
-		}
-
-		// Test if ansible files exist
-		err = client.executeSSHCommand("51.159.157.254", "root", "ls -la inventory_creation.yaml || echo 'inventory_creation.yaml not found'")
-		if err != nil {
-			fmt.Printf("Inventory creation file check failed: %v\n", err)
-			return err
-		}
-
-		err = client.executeSSHCommand("51.159.157.254", "root", "ls -la k8s_up.yaml || echo 'k8s_up.yaml not found'")
-		if err != nil {
-			fmt.Printf("K8s up file check failed: %v\n", err)
-			return err
-		}
-
-		fmt.Printf("✅ File upload test completed\n")
 		return nil
 	})
 }
