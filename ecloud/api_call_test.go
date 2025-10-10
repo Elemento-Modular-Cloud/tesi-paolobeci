@@ -117,7 +117,7 @@ func TestAPIEndpoints(t *testing.T) {
 		req := schema.CanAllocateComputeRequest{
 			Slots:         2,
 			Overprovision: 2,
-			AllowSMT:      false,
+			AllowSMT:      true,
 			Archs:         []string{"X86_64"},
 			Flags:         []string{"sse2"},
 			Ramsize:       2048,
@@ -138,7 +138,7 @@ func TestAPIEndpoints(t *testing.T) {
 			Info:          schema.Info{Name: "test-vm"},
 			Slots:         2,
 			Overprovision: 2,
-			AllowSMT:      false,
+			AllowSMT:      true,
 			Archs:         []string{"X86_64"},
 			Flags:         []string{"sse2"},
 			Ramsize:       2048,

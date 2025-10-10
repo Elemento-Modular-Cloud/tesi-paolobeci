@@ -240,6 +240,7 @@ func (c *ServerClient) Create(ctx context.Context, opts ServerCreateOpts) (Serve
 		Volumes: []map[string]string{},
 		HasNetwork: true,
 		Networks: []map[string]string{},
+		AllowSMT: true,
 	}
 
 	// Add server type configuration
